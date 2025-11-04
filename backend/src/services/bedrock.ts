@@ -3,12 +3,14 @@ import {
   InvokeModelCommand,
   InvokeModelCommandInput,
 } from '@aws-sdk/client-bedrock-runtime';
+import Anthropic from '@anthropic-ai/sdk';
 import config from '../utils/config';
 import logger from '../utils/logger';
 import { BedrockMessage, HealthDocument } from '../types';
 
 class BedrockService {
   private client: BedrockRuntimeClient;
+  private anthropicClient: Anthropic | null = null;
 
   constructor() {
     const clientConfig: any = {
@@ -28,6 +30,13 @@ class BedrockService {
     }
 
     this.client = new BedrockRuntimeClient(clientConfig);
+
+    // Initialize Anthropic client for direct API (fallback when LocalStack Bedrock unavailable)
+    const anthropicApiKey = process.env.ANTHROPIC_API_KEY;
+    if (anthropicApiKey) {
+      this.anthropicClient = new Anthropic({ apiKey: anthropicApiKey });
+      logger.info('Anthropic API client initialized for direct API calls');
+    }
   }
 
   /**
@@ -63,8 +72,45 @@ class BedrockService {
 
       logger.info('Health data analysis completed successfully');
       return response;
-    } catch (error) {
-      logger.error('Error analyzing health data', { error });
+    } catch (error: any) {
+      // If Bedrock fails in development (e.g., LocalStack doesn't support bedrock-runtime),
+      // fall back to mock analysis
+      const isBedrockUnavailable = 
+        config.aws.endpoint && (
+          error.name === 'InternalFailure' ||
+          error.$metadata?.httpStatusCode === 501 ||
+          error.__type === 'InternalFailure' ||
+          (error.message && error.message.includes('bedrock-runtime')) ||
+          (error.message && error.message.includes('not yet been emulated'))
+        );
+
+      if (isBedrockUnavailable) {
+        logger.warn('Bedrock unavailable, trying Anthropic direct API', {
+          error: error.message || error.name,
+          errorType: error.name || error.__type,
+          statusCode: error.$metadata?.httpStatusCode,
+        });
+        
+        // Try using Anthropic direct API if available
+        if (this.anthropicClient) {
+          try {
+            return await this.invokeAnthropicDirect(systemPrompt, messages);
+          } catch (anthropicError: any) {
+            logger.error('Anthropic API also failed', { error: anthropicError.message });
+            throw new Error('Both Bedrock and Anthropic API failed');
+          }
+        }
+        
+        // If no Anthropic API key, throw error
+        throw new Error('Bedrock unavailable and ANTHROPIC_API_KEY not configured. Please set ANTHROPIC_API_KEY for development.');
+      }
+      
+      logger.error('Error analyzing health data', { 
+        error: error.message || error,
+        errorName: error.name,
+        errorType: error.__type,
+        statusCode: error.$metadata?.httpStatusCode,
+      });
       throw new Error('Failed to analyze health data');
     }
   }
@@ -116,6 +162,44 @@ class BedrockService {
     }
 
     throw new Error('No content in Bedrock response');
+  }
+
+  /**
+   * Invoke Anthropic API directly (fallback when Bedrock unavailable)
+   */
+  private async invokeAnthropicDirect(systemPrompt: string, messages: BedrockMessage[]): Promise<string> {
+    if (!this.anthropicClient) {
+      throw new Error('Anthropic client not initialized');
+    }
+
+    logger.info('Invoking Anthropic API directly');
+
+    // Convert messages format - Anthropic expects simpler format
+    const anthropicMessages = messages.map(msg => ({
+      role: msg.role as 'user' | 'assistant',
+      content: msg.content.map((c: any) => c.text || c).join('\n'),
+    }));
+
+    const response = await this.anthropicClient.messages.create({
+      model: 'claude-3-5-sonnet-20241022',
+      max_tokens: 4096,
+      system: systemPrompt,
+      messages: anthropicMessages as any,
+    });
+
+    const text = response.content
+      .filter((block: any) => block.type === 'text')
+      .map((block: any) => block.text)
+      .join('\n');
+
+    if (!text) {
+      throw new Error('No content in Anthropic response');
+    }
+
+    logger.info('Anthropic API response received successfully', { 
+      contentLength: text.length 
+    });
+    return text;
   }
 
   /**
@@ -178,6 +262,7 @@ Please begin your analysis:`;
 
     return message;
   }
+
 }
 
 export default new BedrockService();

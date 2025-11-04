@@ -258,7 +258,7 @@ export const getUserReports = async (req: Request, res: Response) => {
  */
 export const downloadReportPDF = async (req: Request, res: Response) => {
   const { reportId } = req.params;
-  const userId = req.body.userId || 'test-user'; // TODO: Get from JWT
+  const userId = (req.query.userId as string) || 'test-user'; // TODO: Get from JWT
 
   logger.info('Generating PDF report', { reportId, userId });
 
@@ -269,10 +269,23 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: 'Report not found',
+        message: 'Report not found',
       });
     }
 
+    logger.info('Generating PDF buffer', { reportId });
     const pdfBuffer = await reportService.generatePDF(report);
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      logger.error('PDF buffer is empty', { reportId });
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate PDF',
+        message: 'Generated PDF is empty',
+      });
+    }
+
+    logger.info('PDF generated successfully', { reportId, size: pdfBuffer.length });
 
     await auditService.logEvent(userId, 'REPORT_DOWNLOAD', `report:${reportId}`, true, {}, req);
 
@@ -280,21 +293,53 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename="healthweave-report-${reportId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error: any) {
-    logger.error('Error generating PDF report', { error, reportId });
-
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate PDF',
-      message: error.message,
+    const errorMessage = error?.message || String(error) || 'Unknown error occurred';
+    
+    logger.error('Error generating PDF report', { 
+      error: errorMessage,
+      errorStack: error?.stack,
+      reportId,
+      errorName: error?.name,
     });
+
+    // Always send JSON error response (never send PDF headers if error)
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate PDF',
+        message: errorMessage,
+      });
+    }
+    
+    // If headers were already sent (shouldn't happen), log and end
+    logger.error('Headers already sent when error occurred', { reportId });
+    res.end();
   }
 };
 
 // Helper functions to parse AI response
 function extractSection(text: string, ...headers: string[]): string | null {
   for (const header of headers) {
-    const regex = new RegExp(`\\*\\*${header}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\*\\*|$)`, 'i');
-    const match = text.match(regex);
+    // Try markdown headers first (## Header)
+    let regex = new RegExp(`##+\\s+${header}[\\s\\S]*?\\n([\\s\\S]*?)(?=\n##|$)`, 'i');
+    let match = text.match(regex);
+    if (match) {
+      const content = match[1].trim();
+      // Remove next section header if present
+      const cleaned = content.replace(/^##+.*$/m, '').trim();
+      return cleaned || null;
+    }
+
+    // Try bold headers (**Header**:)
+    regex = new RegExp(`\\*\\*${header}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\*\\*|$)`, 'i');
+    match = text.match(regex);
+    if (match) {
+      return match[1].trim();
+    }
+
+    // Try plain headers (Header:)
+    regex = new RegExp(`^${header}:?\\s*([\\s\\S]*?)(?=\\n[A-Z][^:]*:|$)`, 'im');
+    match = text.match(regex);
     if (match) {
       return match[1].trim();
     }
@@ -306,15 +351,32 @@ function extractList(text: string, ...headers: string[]): string[] {
   const section = extractSection(text, ...headers);
   if (!section) return [];
 
-  // Extract numbered or bulleted lists
-  const items = section.match(/(?:^\d+\.|^[-*•])\s*(.+)$/gm);
-  if (items) {
-    return items.map((item) => item.replace(/^(?:\d+\.|[-*•])\s*/, '').trim());
+  // Extract numbered lists (1. item)
+  let items = section.match(/^\d+\.\s+(.+)$/gm);
+  if (items && items.length > 0) {
+    return items.map((item) => item.replace(/^\d+\.\s+/, '').trim()).filter(item => item.length > 0);
   }
 
-  // If no list markers, split by newlines
+  // Extract bulleted lists (- item, * item, • item)
+  items = section.match(/^[-*•]\s+(.+)$/gm);
+  if (items && items.length > 0) {
+    return items.map((item) => item.replace(/^[-*•]\s+/, '').trim()).filter(item => item.length > 0);
+  }
+
+  // Extract lines that look like list items (start with dash or number after some whitespace)
+  items = section.match(/^\s*[-*•]\s+(.+)$/gm);
+  if (items && items.length > 0) {
+    return items.map((item) => item.replace(/^\s*[-*•]\s+/, '').trim()).filter(item => item.length > 0);
+  }
+
+  // If no list markers, split by newlines but filter out empty lines and headers
   return section
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => {
+      return line.length > 0 && 
+             !line.match(/^##/) && 
+             !line.match(/^#{1,6}\s/) &&
+             !line.match(/^\*\*/);
+    });
 }

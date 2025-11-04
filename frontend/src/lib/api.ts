@@ -116,14 +116,27 @@ class ApiClient {
     try {
       const response = await this.client.get(`/api/reports/${reportId}/pdf`, {
         responseType: 'blob',
-        data: {
+        params: {
           userId: userId || 'test-user',
         },
       });
 
+      // If successful, return the blob
       return response.data;
     } catch (error: any) {
-      throw new Error(error.response?.data?.message || 'Failed to download PDF');
+      // If error response is a blob (JSON error wrapped in blob), try to parse it
+      if (error.response?.data instanceof Blob) {
+        try {
+          const text = await error.response.data.text();
+          const errorData = JSON.parse(text);
+          throw new Error(errorData.message || errorData.error || 'Failed to download PDF');
+        } catch {
+          // If parsing fails, use status code
+          throw new Error(error.response?.status === 404 ? 'Report not found' : 'Failed to download PDF');
+        }
+      }
+      // Otherwise use standard error handling
+      throw new Error(error.response?.data?.message || error.message || 'Failed to download PDF');
     }
   }
 

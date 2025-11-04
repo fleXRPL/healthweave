@@ -8,6 +8,7 @@ import {
   PutCommand,
   GetCommand,
   QueryCommand,
+  ScanCommand,
   UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
 import { v4 as uuidv4 } from 'uuid';
@@ -125,7 +126,7 @@ class ReportService {
     logger.info('Retrieving report', { reportId, userId });
 
     try {
-      // We need the sort key (createdAt), so we'll query by userId first
+      // First try: Query by userId using GSI, filter by id
       const queryCommand = new QueryCommand({
         TableName: this.tableName,
         IndexName: 'UserIdIndex',
@@ -138,20 +139,55 @@ class ReportService {
         Limit: 1,
       });
 
-      const response = await this.client.send(queryCommand);
+      let response = await this.client.send(queryCommand);
+      
+      logger.debug('Query response', { 
+        itemCount: response.Items?.length || 0,
+        reportId,
+        userId 
+      });
+
+      // If query returns nothing, try Scan as fallback (LocalStack GSI indexing lag)
+      if (!response.Items || response.Items.length === 0) {
+        logger.warn('Query returned no items, trying Scan fallback', { reportId, userId });
+        const scanCommand = new ScanCommand({
+          TableName: this.tableName,
+          FilterExpression: 'id = :id AND userId = :userId',
+          ExpressionAttributeValues: {
+            ':id': reportId,
+            ':userId': userId,
+          },
+          Limit: 1,
+        });
+        response = await this.client.send(scanCommand);
+        logger.debug('Scan response', { 
+          itemCount: response.Items?.length || 0,
+          reportId,
+          userId 
+        });
+      }
 
       if (!response.Items || response.Items.length === 0) {
+        logger.warn('Report not found', { reportId, userId });
         return null;
       }
 
       const item = response.Items[0];
-      return {
+      const report = {
         ...item,
         createdAt: new Date(item.createdAt),
       } as AnalysisResult;
-    } catch (error) {
-      logger.error('Error retrieving report', { error, reportId });
-      throw new Error('Failed to retrieve report');
+      
+      logger.info('Report retrieved successfully', { reportId });
+      return report;
+    } catch (error: any) {
+      logger.error('Error retrieving report', { 
+        error: error.message || error,
+        errorName: error.name,
+        reportId,
+        userId 
+      });
+      throw new Error(`Failed to retrieve report: ${error.message || error}`);
     }
   }
 
@@ -201,8 +237,18 @@ class ReportService {
         const chunks: Buffer[] = [];
 
         doc.on('data', (chunk) => chunks.push(chunk));
-        doc.on('end', () => resolve(Buffer.concat(chunks)));
-        doc.on('error', reject);
+        doc.on('end', () => {
+          const buffer = Buffer.concat(chunks);
+          if (buffer.length === 0) {
+            reject(new Error('Generated PDF buffer is empty'));
+            return;
+          }
+          resolve(buffer);
+        });
+        doc.on('error', (error) => {
+          logger.error('PDFDocument error', { error, reportId: report.id });
+          reject(error);
+        });
 
         // Add header with logo placeholder
         doc
@@ -238,13 +284,21 @@ class ReportService {
           .text('Key Findings', { underline: true })
           .moveDown(0.5);
 
-        report.keyFindings.forEach((finding, index) => {
+        if (report.keyFindings && report.keyFindings.length > 0) {
+          report.keyFindings.forEach((finding, index) => {
+            doc
+              .fontSize(11)
+              .fillColor('#2D343F')
+              .text(`${index + 1}. ${finding}`, { indent: 20 })
+              .moveDown(0.5);
+          });
+        } else {
           doc
             .fontSize(11)
-            .fillColor('#2D343F')
-            .text(`${index + 1}. ${finding}`, { indent: 20 })
+            .fillColor('#666666')
+            .text('No specific findings identified.', { indent: 20 })
             .moveDown(0.5);
-        });
+        }
 
         doc.moveDown(2);
 
@@ -255,13 +309,21 @@ class ReportService {
           .text('Recommendations', { underline: true })
           .moveDown(0.5);
 
-        report.recommendations.forEach((rec, index) => {
+        if (report.recommendations && report.recommendations.length > 0) {
+          report.recommendations.forEach((rec, index) => {
+            doc
+              .fontSize(11)
+              .fillColor('#2D343F')
+              .text(`${index + 1}. ${rec}`, { indent: 20 })
+              .moveDown(0.5);
+          });
+        } else {
           doc
             .fontSize(11)
-            .fillColor('#2D343F')
-            .text(`${index + 1}. ${rec}`, { indent: 20 })
+            .fillColor('#666666')
+            .text('No specific recommendations at this time.', { indent: 20 })
             .moveDown(0.5);
-        });
+        }
 
         doc.moveDown(2);
 
