@@ -7,6 +7,34 @@ interface AnalysisResultsProps {
   result: AnalyzeResponse;
 }
 
+/**
+ * Convert markdown bold (**text**) to HTML strong tags
+ */
+function renderMarkdown(text: string): JSX.Element {
+  const parts: (string | JSX.Element)[] = [];
+  const regex = /\*\*([^*]+)\*\*/g;
+  let lastIndex = 0;
+  let match;
+  let key = 0;
+
+  while ((match = regex.exec(text)) !== null) {
+    // Add text before the match
+    if (match.index > lastIndex) {
+      parts.push(text.substring(lastIndex, match.index));
+    }
+    // Add the bold text
+    parts.push(<strong key={key++}>{match[1]}</strong>);
+    lastIndex = regex.lastIndex;
+  }
+
+  // Add remaining text
+  if (lastIndex < text.length) {
+    parts.push(text.substring(lastIndex));
+  }
+
+  return <>{parts.length > 0 ? parts : text}</>;
+}
+
 export default function AnalysisResults({ result }: AnalysisResultsProps) {
   const handleDownloadPDF = async () => {
     try {
@@ -57,7 +85,9 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
           <h2 className="text-xl font-bold text-white">Executive Summary</h2>
         </div>
         <div className="px-6 py-4">
-          <p className="text-gray-700 leading-relaxed whitespace-pre-wrap">{result.summary}</p>
+          <div className="text-gray-700 leading-relaxed whitespace-pre-wrap">
+            {renderMarkdown(result.summary)}
+          </div>
         </div>
       </div>
 
@@ -74,7 +104,7 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
                   <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-blue-100 text-primary font-semibold text-sm mr-3">
                     {index + 1}
                   </span>
-                  <p className="text-gray-700 flex-1">{finding}</p>
+                  <div className="text-gray-700 flex-1">{renderMarkdown(finding)}</div>
                 </li>
               ))}
             </ul>
@@ -107,7 +137,7 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
                       d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
                     />
                   </svg>
-                  <p className="text-gray-700 flex-1">{rec}</p>
+                  <div className="text-gray-700 flex-1">{renderMarkdown(rec)}</div>
                 </li>
               ))}
             </ul>
