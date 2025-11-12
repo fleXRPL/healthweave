@@ -1,5 +1,7 @@
 # HealthWeave
 
+![HealthWeave Logo](logo/healthweave_logo_web.png)
+
 AI-Powered Health Data Synthesis & Clinical Insights Platform
 
 ## Overview
@@ -16,18 +18,26 @@ HealthWeave synthesizes patient health data with current medical literature to g
 
 ## Project Structure
 
-```
+```bash  
 healthweave/
-├── frontend/          # Next.js application
-├── backend/           # Node.js API
-├── infrastructure/    # AWS IaC (Terraform)
-├── docker/            # Docker configurations
-└── docs/              # Documentation
+├── backend/          # Backend API
+│   ├── dist          # Compiled code (production)
+│   ├── node_modules  # Dependencies
+│   └── src           # Source code
+├── docs              # Documentation
+├── frontend          # Frontend application
+│   ├── node_modules  # Dependencies
+│   └── src           # Source code
+├── Liver Tests       # Liver Tests
+├── localstack-data   # LocalStack data
+├── logo              # Logo files
+└── wiki              # Wiki
 ```
 
 ## Quick Start
 
 ### Prerequisites
+
 - Node.js 18+
 - Docker & Docker Compose
 - AWS CLI (for production deployment)
@@ -35,11 +45,13 @@ healthweave/
 ### Local Development
 
 1. **Start LocalStack**
+
    ```bash
    docker-compose up -d
    ```
 
 2. **Install Dependencies**
+
    ```bash
    # Backend
    cd backend && npm install
@@ -49,6 +61,7 @@ healthweave/
    ```
 
 3. **Start Development Servers**
+
    ```bash
    # Terminal 1 - Backend
    cd backend && npm run dev
@@ -65,9 +78,11 @@ healthweave/
 ## Environment Configuration
 
 ### Development (LocalStack)
+
 Uses local AWS emulation with Ollama models
 
 ### Production (AWS)
+
 Uses real AWS Bedrock with Claude and HIPAA compliance
 
 ## Security & Compliance
