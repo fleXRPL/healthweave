@@ -97,10 +97,10 @@ export const analyzeDocuments = [
         try {
           const content = await storageService.extractTextContent(key, file.mimetype);
           documentContents.set(docId, content);
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('Failed to extract content from document', {
             fileName: file.originalname,
-            error,
+            error: error?.message || String(error),
           });
           documentContents.set(docId, `[Content extraction failed for ${file.originalname}]`);
         }
@@ -119,14 +119,30 @@ export const analyzeDocuments = [
         patientContext
       );
 
+      // Log the raw analysis text for debugging
+      logger.debug('Raw analysis text received', { 
+        length: analysisText.length,
+        preview: analysisText.substring(0, 500) 
+      });
+
       // Parse analysis result and create structured report
+      const summary = extractSection(analysisText, 'Summary', 'Executive Summary');
+      const keyFindings = extractList(analysisText, 'Key Findings', 'Findings');
+      const recommendations = extractList(analysisText, 'Recommendations', 'Recommendation');
+      
+      logger.debug('Extracted report sections', {
+        hasSummary: !!summary,
+        findingsCount: keyFindings.length,
+        recommendationsCount: recommendations.length,
+      });
+
       const report: AnalysisResult = {
         id: uuidv4(),
         userId,
         createdAt: new Date(),
-        summary: extractSection(analysisText, 'Summary', 'Executive Summary') || 'Analysis complete',
-        keyFindings: extractList(analysisText, 'Key Findings', 'Findings'),
-        recommendations: extractList(analysisText, 'Recommendations', 'Recommendation'),
+        summary: summary || analysisText.substring(0, 500) || 'Analysis complete',
+        keyFindings: keyFindings.length > 0 ? keyFindings : ['Analysis completed. Review full report for details.'],
+        recommendations: recommendations.length > 0 ? recommendations : ['Review the full analysis report with your healthcare provider.'],
         citations: [], // TODO: Extract citations from analysis
         fullReport: analysisText,
       };
@@ -161,21 +177,29 @@ export const analyzeDocuments = [
         recommendations: report.recommendations,
       });
     } catch (error: any) {
-      logger.error('Error during document analysis', { error, userId });
+      const errorMessage = error?.message || String(error) || 'Unknown error';
+      const errorStack = error?.stack;
+      
+      logger.error('Error during document analysis', { 
+        error: errorMessage,
+        errorStack,
+        errorName: error?.name,
+        userId 
+      });
 
       await auditService.logEvent(
         userId,
         'ANALYSIS_FAILED',
         'health_documents',
         false,
-        { error: error.message },
+        { error: errorMessage },
         req
       );
 
       res.status(500).json({
         success: false,
         error: 'Failed to analyze documents',
-        message: error.message,
+        message: errorMessage,
       });
     }
   },
@@ -207,12 +231,16 @@ export const getReport = async (req: Request, res: Response) => {
       report,
     });
   } catch (error: any) {
-    logger.error('Error retrieving report', { error, reportId });
+    logger.error('Error retrieving report', { 
+      error: error?.message || String(error),
+      errorStack: error?.stack,
+      reportId 
+    });
 
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve report',
-      message: error.message,
+      message: error?.message || 'Unknown error',
     });
   }
 };
@@ -243,12 +271,16 @@ export const getUserReports = async (req: Request, res: Response) => {
       reports,
     });
   } catch (error: any) {
-    logger.error('Error retrieving user reports', { error, userId });
+    logger.error('Error retrieving user reports', { 
+      error: error?.message || String(error),
+      errorStack: error?.stack,
+      userId 
+    });
 
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve reports',
-      message: error.message,
+      message: error?.message || 'Unknown error',
     });
   }
 };
@@ -258,7 +290,7 @@ export const getUserReports = async (req: Request, res: Response) => {
  */
 export const downloadReportPDF = async (req: Request, res: Response) => {
   const { reportId } = req.params;
-  const userId = req.body.userId || 'test-user'; // TODO: Get from JWT
+  const userId = (req.query.userId as string) || 'test-user'; // TODO: Get from JWT
 
   logger.info('Generating PDF report', { reportId, userId });
 
@@ -269,10 +301,23 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
       return res.status(404).json({
         success: false,
         error: 'Report not found',
+        message: 'Report not found',
       });
     }
 
+    logger.info('Generating PDF buffer', { reportId });
     const pdfBuffer = await reportService.generatePDF(report);
+
+    if (!pdfBuffer || pdfBuffer.length === 0) {
+      logger.error('PDF buffer is empty', { reportId });
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate PDF',
+        message: 'Generated PDF is empty',
+      });
+    }
+
+    logger.info('PDF generated successfully', { reportId, size: pdfBuffer.length });
 
     await auditService.logEvent(userId, 'REPORT_DOWNLOAD', `report:${reportId}`, true, {}, req);
 
@@ -280,21 +325,53 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
     res.setHeader('Content-Disposition', `attachment; filename="healthweave-report-${reportId}.pdf"`);
     res.send(pdfBuffer);
   } catch (error: any) {
-    logger.error('Error generating PDF report', { error, reportId });
-
-    res.status(500).json({
-      success: false,
-      error: 'Failed to generate PDF',
-      message: error.message,
+    const errorMessage = error?.message || String(error) || 'Unknown error occurred';
+    
+    logger.error('Error generating PDF report', { 
+      error: errorMessage,
+      errorStack: error?.stack,
+      reportId,
+      errorName: error?.name,
     });
+
+    // Always send JSON error response (never send PDF headers if error)
+    if (!res.headersSent) {
+      return res.status(500).json({
+        success: false,
+        error: 'Failed to generate PDF',
+        message: errorMessage,
+      });
+    }
+    
+    // If headers were already sent (shouldn't happen), log and end
+    logger.error('Headers already sent when error occurred', { reportId });
+    res.end();
   }
 };
 
 // Helper functions to parse AI response
 function extractSection(text: string, ...headers: string[]): string | null {
   for (const header of headers) {
-    const regex = new RegExp(`\\*\\*${header}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\*\\*|$)`, 'i');
-    const match = text.match(regex);
+    // Try markdown headers first (## Header)
+    let regex = new RegExp(`##+\\s+${header}[\\s\\S]*?\\n([\\s\\S]*?)(?=\n##|$)`, 'i');
+    let match = text.match(regex);
+    if (match) {
+      const content = match[1].trim();
+      // Remove next section header if present
+      const cleaned = content.replace(/^##+.*$/m, '').trim();
+      return cleaned || null;
+    }
+
+    // Try bold headers (**Header**:)
+    regex = new RegExp(`\\*\\*${header}\\*\\*:?\\s*([\\s\\S]*?)(?=\\n\\*\\*|$)`, 'i');
+    match = text.match(regex);
+    if (match) {
+      return match[1].trim();
+    }
+
+    // Try plain headers (Header:)
+    regex = new RegExp(`^${header}:?\\s*([\\s\\S]*?)(?=\\n[A-Z][^:]*:|$)`, 'im');
+    match = text.match(regex);
     if (match) {
       return match[1].trim();
     }
@@ -306,15 +383,32 @@ function extractList(text: string, ...headers: string[]): string[] {
   const section = extractSection(text, ...headers);
   if (!section) return [];
 
-  // Extract numbered or bulleted lists
-  const items = section.match(/(?:^\d+\.|^[-*•])\s*(.+)$/gm);
-  if (items) {
-    return items.map((item) => item.replace(/^(?:\d+\.|[-*•])\s*/, '').trim());
+  // Extract numbered lists (1. item)
+  let items = section.match(/^\d+\.\s+(.+)$/gm);
+  if (items && items.length > 0) {
+    return items.map((item) => item.replace(/^\d+\.\s+/, '').trim()).filter(item => item.length > 0);
   }
 
-  // If no list markers, split by newlines
+  // Extract bulleted lists (- item, * item, • item)
+  items = section.match(/^[-*•]\s+(.+)$/gm);
+  if (items && items.length > 0) {
+    return items.map((item) => item.replace(/^[-*•]\s+/, '').trim()).filter(item => item.length > 0);
+  }
+
+  // Extract lines that look like list items (start with dash or number after some whitespace)
+  items = section.match(/^\s*[-*•]\s+(.+)$/gm);
+  if (items && items.length > 0) {
+    return items.map((item) => item.replace(/^\s*[-*•]\s+/, '').trim()).filter(item => item.length > 0);
+  }
+
+  // If no list markers, split by newlines but filter out empty lines and headers
   return section
     .split('\n')
     .map((line) => line.trim())
-    .filter((line) => line.length > 0);
+    .filter((line) => {
+      return line.length > 0 && 
+             !line.match(/^##/) && 
+             !line.match(/^#{1,6}\s/) &&
+             !line.match(/^\*\*/);
+    });
 }
