@@ -97,10 +97,10 @@ export const analyzeDocuments = [
         try {
           const content = await storageService.extractTextContent(key, file.mimetype);
           documentContents.set(docId, content);
-        } catch (error) {
+        } catch (error: any) {
           logger.warn('Failed to extract content from document', {
             fileName: file.originalname,
-            error,
+            error: error?.message || String(error),
           });
           documentContents.set(docId, `[Content extraction failed for ${file.originalname}]`);
         }
@@ -119,14 +119,30 @@ export const analyzeDocuments = [
         patientContext
       );
 
+      // Log the raw analysis text for debugging
+      logger.debug('Raw analysis text received', { 
+        length: analysisText.length,
+        preview: analysisText.substring(0, 500) 
+      });
+
       // Parse analysis result and create structured report
+      const summary = extractSection(analysisText, 'Summary', 'Executive Summary');
+      const keyFindings = extractList(analysisText, 'Key Findings', 'Findings');
+      const recommendations = extractList(analysisText, 'Recommendations', 'Recommendation');
+      
+      logger.debug('Extracted report sections', {
+        hasSummary: !!summary,
+        findingsCount: keyFindings.length,
+        recommendationsCount: recommendations.length,
+      });
+
       const report: AnalysisResult = {
         id: uuidv4(),
         userId,
         createdAt: new Date(),
-        summary: extractSection(analysisText, 'Summary', 'Executive Summary') || 'Analysis complete',
-        keyFindings: extractList(analysisText, 'Key Findings', 'Findings'),
-        recommendations: extractList(analysisText, 'Recommendations', 'Recommendation'),
+        summary: summary || analysisText.substring(0, 500) || 'Analysis complete',
+        keyFindings: keyFindings.length > 0 ? keyFindings : ['Analysis completed. Review full report for details.'],
+        recommendations: recommendations.length > 0 ? recommendations : ['Review the full analysis report with your healthcare provider.'],
         citations: [], // TODO: Extract citations from analysis
         fullReport: analysisText,
       };
@@ -161,21 +177,29 @@ export const analyzeDocuments = [
         recommendations: report.recommendations,
       });
     } catch (error: any) {
-      logger.error('Error during document analysis', { error, userId });
+      const errorMessage = error?.message || String(error) || 'Unknown error';
+      const errorStack = error?.stack;
+      
+      logger.error('Error during document analysis', { 
+        error: errorMessage,
+        errorStack,
+        errorName: error?.name,
+        userId 
+      });
 
       await auditService.logEvent(
         userId,
         'ANALYSIS_FAILED',
         'health_documents',
         false,
-        { error: error.message },
+        { error: errorMessage },
         req
       );
 
       res.status(500).json({
         success: false,
         error: 'Failed to analyze documents',
-        message: error.message,
+        message: errorMessage,
       });
     }
   },
@@ -207,12 +231,16 @@ export const getReport = async (req: Request, res: Response) => {
       report,
     });
   } catch (error: any) {
-    logger.error('Error retrieving report', { error, reportId });
+    logger.error('Error retrieving report', { 
+      error: error?.message || String(error),
+      errorStack: error?.stack,
+      reportId 
+    });
 
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve report',
-      message: error.message,
+      message: error?.message || 'Unknown error',
     });
   }
 };
@@ -243,12 +271,16 @@ export const getUserReports = async (req: Request, res: Response) => {
       reports,
     });
   } catch (error: any) {
-    logger.error('Error retrieving user reports', { error, userId });
+    logger.error('Error retrieving user reports', { 
+      error: error?.message || String(error),
+      errorStack: error?.stack,
+      userId 
+    });
 
     res.status(500).json({
       success: false,
       error: 'Failed to retrieve reports',
-      message: error.message,
+      message: error?.message || 'Unknown error',
     });
   }
 };

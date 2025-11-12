@@ -103,18 +103,32 @@ class ReportService {
     logger.info('Saving analysis report', { reportId: report.id, userId: report.userId });
 
     try {
+      const item = {
+        ...report,
+        createdAt: report.createdAt.getTime(),
+      };
+      
+      logger.debug('Report item to save', { 
+        reportId: item.id,
+        userId: item.userId,
+        createdAt: item.createdAt,
+        hasSummary: !!item.summary,
+        findingsCount: item.keyFindings?.length || 0,
+      });
+
       const command = new PutCommand({
         TableName: this.tableName,
-        Item: {
-          ...report,
-          createdAt: report.createdAt.getTime(),
-        },
+        Item: item,
       });
 
       await this.client.send(command);
-      logger.info('Report saved successfully', { reportId: report.id });
-    } catch (error) {
-      logger.error('Error saving report', { error, reportId: report.id });
+      logger.info('Report saved successfully', { reportId: report.id, userId: report.userId });
+    } catch (error: any) {
+      logger.error('Error saving report', { 
+        error: error?.message || String(error),
+        errorStack: error?.stack,
+        reportId: report.id 
+      });
       throw new Error('Failed to save report');
     }
   }
@@ -152,19 +166,32 @@ class ReportService {
         logger.warn('Query returned no items, trying Scan fallback', { reportId, userId });
         const scanCommand = new ScanCommand({
           TableName: this.tableName,
-          FilterExpression: 'id = :id AND userId = :userId',
+          FilterExpression: '#id = :id',
+          ExpressionAttributeNames: {
+            '#id': 'id',
+          },
           ExpressionAttributeValues: {
             ':id': reportId,
-            ':userId': userId,
           },
-          Limit: 1,
         });
-        response = await this.client.send(scanCommand);
+        const scanResponse = await this.client.send(scanCommand);
         logger.debug('Scan response', { 
-          itemCount: response.Items?.length || 0,
+          itemCount: scanResponse.Items?.length || 0,
           reportId,
-          userId 
+          userId,
+          allItems: scanResponse.Items?.map(i => ({ id: i.id, userId: i.userId }))
         });
+        
+        // Filter by userId in code (since FilterExpression with AND might not work in LocalStack)
+        if (scanResponse.Items && scanResponse.Items.length > 0) {
+          const matchingItem = scanResponse.Items.find(item => 
+            item.id === reportId && item.userId === userId
+          );
+          if (matchingItem) {
+            response = { Items: [matchingItem] };
+            logger.info('Found report via Scan fallback', { reportId });
+          }
+        }
       }
 
       if (!response.Items || response.Items.length === 0) {

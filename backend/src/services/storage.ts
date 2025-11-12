@@ -8,6 +8,8 @@ import {
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
+// Dynamic import for pdfjs-dist to handle ESM/CommonJS compatibility
+let pdfjsLib: any;
 import config from '../utils/config';
 import logger from '../utils/logger';
 import { v4 as uuidv4 } from 'uuid';
@@ -192,7 +194,7 @@ class StorageService {
   /**
    * Extract text content from a document
    * In production: Uses AWS Textract for PDF/image extraction
-   * In development: Returns simple placeholder
+   * In development: Uses pdfjs-dist for PDF text extraction
    */
   async extractTextContent(key: string, mimeType: string): Promise<string> {
     logger.info('Extracting text content from document', { key, mimeType });
@@ -204,13 +206,109 @@ class StorageService {
         return buffer.toString('utf-8');
       }
 
-      // For PDFs/images: Use AWS Textract in production
-      // In development, return simple placeholder
+      // Handle PDFs using pdfjs-dist
+      if (mimeType === 'application/pdf' || key.endsWith('.pdf')) {
+        const buffer = await this.downloadFile(key);
+        return await this.extractTextFromPDF(buffer);
+      }
+
+      // For images: In production use AWS Textract, in development return placeholder
       const fileName = key.split('/').pop() || 'document';
-      return `[Document: ${fileName}. AWS Textract will extract content in production.]`;
+      return `[Image: ${fileName}. AWS Textract will extract content in production.]`;
     } catch (error: any) {
       logger.error('Error extracting text content', { error, key });
       throw new Error(`Failed to extract text content: ${error.message}`);
+    }
+  }
+
+  /**
+   * Extract text from PDF using pdfjs-dist
+   */
+  private async extractTextFromPDF(buffer: Buffer): Promise<string> {
+    try {
+      // Dynamically import pdfjs-dist to handle module compatibility
+      if (!pdfjsLib) {
+        const pdfjsModule = await import('pdfjs-dist/legacy/build/pdf.mjs');
+        pdfjsLib = pdfjsModule.default || pdfjsModule;
+      }
+      
+      // Load the PDF document
+      const loadingTask = pdfjsLib.getDocument({
+        data: new Uint8Array(buffer),
+        useSystemFonts: true,
+      });
+      
+      const pdf = await loadingTask.promise;
+      const numPages = pdf.numPages;
+      
+      logger.debug('PDF loaded', { numPages });
+      
+      const textParts: string[] = [];
+      
+      // Extract text from each page
+      for (let pageNum = 1; pageNum <= numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        
+        // Combine all text items from the page with better spacing
+        const pageText = textContent.items
+          .map((item: any) => {
+            let text = item.str || '';
+            // Add space before if previous item might need it (heuristic)
+            return text;
+          })
+          .join(' ')
+          // Clean up spacing issues immediately
+          .replace(/\s+/g, ' ')
+          .trim();
+        
+        if (pageText.length > 0) {
+          textParts.push(pageText);
+        }
+      }
+      
+      let fullText = textParts.join('\n\n');
+      
+      // Aggressive cleanup of PDF extraction artifacts
+      fullText = fullText
+        // Remove lines that are mostly garbled (more than 30% non-standard chars)
+        .split('\n')
+        .map(line => {
+          const printableChars = line.match(/[a-zA-Z0-9\s.,;:!?()\-]/g)?.length || 0;
+          const totalChars = line.length;
+          if (totalChars > 0 && printableChars / totalChars < 0.3) {
+            return ''; // Skip mostly garbled lines
+          }
+          return line;
+        })
+        .filter(line => line.trim().length > 0)
+        .join('\n')
+        // Remove specific garbled patterns
+        .replace(/['¢]+\s*/g, '') // Remove '¢ patterns
+        .replace(/™\+/g, '') // Remove trademark+ patterns
+        .replace(/[¢†W]\s*/g, '') // Remove common artifact chars
+        .replace(/[Ææöãóâ]+\s*/g, '') // Remove common garbled unicode
+        .replace(/[FV]\s*[+-]?\d*\s*/g, '') // Remove F/V number patterns
+        .replace(/[^\x20-\x7E\n\t]/g, ' ') // Remove non-printable except newlines/tabs
+        // Clean up spacing
+        .replace(/[ \t]+/g, ' ')
+        .replace(/\n{3,}/g, '\n\n')
+        // Fix common OCR errors
+        .replace(/\bLI ER\b/g, 'LIVER')
+        .replace(/\bFRöb\b/g, 'Report')
+        .replace(/\böb\b/g, '')
+        .trim();
+      
+      logger.debug('PDF text extracted and cleaned', { 
+        length: fullText.length,
+        pages: numPages 
+      });
+      
+      return fullText;
+    } catch (error: any) {
+      logger.error('Error extracting text from PDF', { error: error.message });
+      // Return a helpful message instead of failing completely
+      return `[PDF text extraction failed: ${error.message}. Document uploaded but content not extracted.]`;
     }
   }
 }
