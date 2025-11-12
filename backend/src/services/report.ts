@@ -17,6 +17,33 @@ import config from '../utils/config';
 import logger from '../utils/logger';
 import { AnalysisResult } from '../types';
 
+/**
+ * Strip markdown formatting from text for PDF rendering
+ * Converts **bold** to plain text and handles other markdown patterns
+ */
+function stripMarkdown(text: string): string {
+  if (!text) return '';
+  
+  // Remove markdown bold markers (**text**)
+  let cleaned = text.replace(/\*\*([^*]+)\*\*/g, '$1');
+  
+  // Remove markdown italic (*text* or _text_)
+  cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');
+  cleaned = cleaned.replace(/_([^_]+)_/g, '$1');
+  
+  // Remove markdown code blocks (`code`)
+  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
+  
+  // Remove markdown links [text](url) -> text
+  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
+  
+  // Clean up any remaining markdown artifacts
+  cleaned = cleaned.replace(/\*\*/g, ''); // Any remaining **
+  cleaned = cleaned.replace(/\*/g, ''); // Any remaining *
+  
+  return cleaned.trim();
+}
+
 class ReportService {
   private client: DynamoDBDocumentClient;
   private tableName: string;
@@ -302,7 +329,7 @@ class ReportService {
           .text('Executive Summary', { underline: true })
           .moveDown(0.5);
 
-        doc.fontSize(11).fillColor('#2D343F').text(report.summary, { align: 'justify' }).moveDown(2);
+        doc.fontSize(11).fillColor('#2D343F').text(stripMarkdown(report.summary), { align: 'justify' }).moveDown(2);
 
         // Key Findings
         doc
@@ -313,11 +340,28 @@ class ReportService {
 
         if (report.keyFindings && report.keyFindings.length > 0) {
           report.keyFindings.forEach((finding, index) => {
-            doc
-              .fontSize(11)
-              .fillColor('#2D343F')
-              .text(`${index + 1}. ${finding}`, { indent: 20 })
-              .moveDown(0.5);
+            const cleanedFinding = stripMarkdown(finding);
+            // Check if there's a bold header pattern to render properly
+            const boldMatch = finding.match(/\*\*([^*]+):\*\*\s*(.+)/);
+            if (boldMatch) {
+              const header = boldMatch[1];
+              const content = boldMatch[2];
+              doc
+                .fontSize(11)
+                .fillColor('#2D343F')
+                .text(`${index + 1}. `, { indent: 20, continued: true })
+                .font('Helvetica-Bold')
+                .text(`${header}: `, { continued: true })
+                .font('Helvetica')
+                .text(stripMarkdown(content))
+                .moveDown(0.5);
+            } else {
+              doc
+                .fontSize(11)
+                .fillColor('#2D343F')
+                .text(`${index + 1}. ${cleanedFinding}`, { indent: 20 })
+                .moveDown(0.5);
+            }
           });
         } else {
           doc
@@ -338,11 +382,28 @@ class ReportService {
 
         if (report.recommendations && report.recommendations.length > 0) {
           report.recommendations.forEach((rec, index) => {
-            doc
-              .fontSize(11)
-              .fillColor('#2D343F')
-              .text(`${index + 1}. ${rec}`, { indent: 20 })
-              .moveDown(0.5);
+            const cleanedRec = stripMarkdown(rec);
+            // Check if there's a bold header pattern to render properly
+            const boldMatch = rec.match(/\*\*([^*]+):\*\*\s*(.+)/);
+            if (boldMatch) {
+              const header = boldMatch[1];
+              const content = boldMatch[2];
+              doc
+                .fontSize(11)
+                .fillColor('#2D343F')
+                .text(`${index + 1}. `, { indent: 20, continued: true })
+                .font('Helvetica-Bold')
+                .text(`${header}: `, { continued: true })
+                .font('Helvetica')
+                .text(stripMarkdown(content))
+                .moveDown(0.5);
+            } else {
+              doc
+                .fontSize(11)
+                .fillColor('#2D343F')
+                .text(`${index + 1}. ${cleanedRec}`, { indent: 20 })
+                .moveDown(0.5);
+            }
           });
         } else {
           doc
@@ -363,7 +424,7 @@ class ReportService {
             .text('Detailed Analysis', { underline: true })
             .moveDown(1);
 
-          doc.fontSize(10).fillColor('#2D343F').text(report.fullReport, { align: 'justify' });
+          doc.fontSize(10).fillColor('#2D343F').text(stripMarkdown(report.fullReport), { align: 'justify' });
         }
 
         // Footer

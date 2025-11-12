@@ -126,23 +126,64 @@ export const analyzeDocuments = [
       });
 
       // Parse analysis result and create structured report
-      const summary = extractSection(analysisText, 'Summary', 'Executive Summary');
+      const summary = extractSection(analysisText, 'Executive Summary', 'Summary');
       const keyFindings = extractList(analysisText, 'Key Findings', 'Findings');
+      const clinicalCorrelations = extractSection(analysisText, 'Clinical Correlations', 'Correlations');
       const recommendations = extractList(analysisText, 'Recommendations', 'Recommendation');
+      const uncertainties = extractSection(analysisText, 'Uncertainties and Limitations', 'Uncertainties', 'Limitations');
       
       logger.debug('Extracted report sections', {
         hasSummary: !!summary,
+        summaryLength: summary?.length || 0,
         findingsCount: keyFindings.length,
+        findingsPreview: keyFindings.slice(0, 2),
+        hasCorrelations: !!clinicalCorrelations,
         recommendationsCount: recommendations.length,
+        recommendationsPreview: recommendations.slice(0, 2),
+        hasUncertainties: !!uncertainties,
+        rawAnalysisLength: analysisText.length,
+        rawAnalysisPreview: analysisText.substring(0, 1000),
       });
+
+      // Enhance summary with correlations if available
+      let enhancedSummary = summary || analysisText.substring(0, 500) || 'Analysis complete';
+      if (clinicalCorrelations && summary) {
+        enhancedSummary = `${summary}\n\n${clinicalCorrelations.substring(0, 300)}`;
+      }
+
+      // If extraction failed, try to extract from full text as fallback
+      let finalKeyFindings = keyFindings;
+      let finalRecommendations = recommendations;
+      
+      if (keyFindings.length === 0 && analysisText.length > 0) {
+        // Try to extract any numbered or bulleted lists from the full text
+        const allNumbered = analysisText.match(/^\d+\.\s+.+$/gm);
+        const allBulleted = analysisText.match(/^[-*•]\s+.+$/gm);
+        if (allNumbered && allNumbered.length > 0) {
+          finalKeyFindings = allNumbered.slice(0, 10).map(item => item.replace(/^\d+\.\s+/, '').trim());
+        } else if (allBulleted && allBulleted.length > 0) {
+          finalKeyFindings = allBulleted.slice(0, 10).map(item => item.replace(/^[-*•]\s+/, '').trim());
+        }
+      }
+      
+      if (recommendations.length === 0 && analysisText.length > 0) {
+        // Look for recommendations section in full text
+        const recSection = analysisText.match(/##\s+Recommendations[\s\S]*?(?=##|$)/i);
+        if (recSection) {
+          const recItems = recSection[0].match(/^\d+\.\s+.+$/gm) || recSection[0].match(/^[-*•]\s+.+$/gm);
+          if (recItems) {
+            finalRecommendations = recItems.map(item => item.replace(/^(\d+\.|[-*•])\s+/, '').trim());
+          }
+        }
+      }
 
       const report: AnalysisResult = {
         id: uuidv4(),
         userId,
         createdAt: new Date(),
-        summary: summary || analysisText.substring(0, 500) || 'Analysis complete',
-        keyFindings: keyFindings.length > 0 ? keyFindings : ['Analysis completed. Review full report for details.'],
-        recommendations: recommendations.length > 0 ? recommendations : ['Review the full analysis report with your healthcare provider.'],
+        summary: enhancedSummary,
+        keyFindings: finalKeyFindings.length > 0 ? finalKeyFindings : ['Analysis completed. Review full report for details.'],
+        recommendations: finalRecommendations.length > 0 ? finalRecommendations : ['Review the full analysis report with your healthcare provider.'],
         citations: [], // TODO: Extract citations from analysis
         fullReport: analysisText,
       };
@@ -383,22 +424,49 @@ function extractList(text: string, ...headers: string[]): string[] {
   const section = extractSection(text, ...headers);
   if (!section) return [];
 
+  const items: string[] = [];
+  
+  // Try to extract structured content with bold headers
+  // Pattern: **Header:** content (on same line or following lines)
+  const headerPattern = /\*\*([^*]+?):\*\*\s*([^\n*]+(?:\n(?!\*\*|\d+\.|[-*•]|##)[^\n]+)*)/g;
+  const headerMatches = [...section.matchAll(headerPattern)];
+  
+  if (headerMatches.length > 0) {
+    headerMatches.forEach(match => {
+      const header = match[1].trim();
+      let content = match[2].trim();
+      
+      // If content is empty, look for content on following lines
+      if (!content || content.length === 0) {
+        const afterMatch = section.substring(match.index! + match[0].length);
+        const nextMatch = afterMatch.match(/^\*\*|\n\d+\.|\n[-*•]|\n##|\n\n\n/);
+        const contentEnd = nextMatch ? nextMatch.index! : Math.min(afterMatch.length, 500);
+        content = afterMatch.substring(0, contentEnd).trim();
+      }
+      
+      if (content.length > 0) {
+        items.push(`**${header}:** ${content}`);
+      }
+    });
+    if (items.length > 0) return items;
+  }
+
   // Extract numbered lists (1. item)
-  let items = section.match(/^\d+\.\s+(.+)$/gm);
-  if (items && items.length > 0) {
-    return items.map((item) => item.replace(/^\d+\.\s+/, '').trim()).filter(item => item.length > 0);
+  let numberedItems = section.match(/^\d+\.\s+(.+)$/gm);
+  if (numberedItems && numberedItems.length > 0) {
+    return numberedItems.map((item) => item.replace(/^\d+\.\s+/, '').trim()).filter(item => item.length > 0);
   }
 
   // Extract bulleted lists (- item, * item, • item)
-  items = section.match(/^[-*•]\s+(.+)$/gm);
-  if (items && items.length > 0) {
-    return items.map((item) => item.replace(/^[-*•]\s+/, '').trim()).filter(item => item.length > 0);
+  let bulletItems = section.match(/^[-*•]\s+(.+)$/gm);
+  if (bulletItems && bulletItems.length > 0) {
+    return bulletItems.map((item) => item.replace(/^[-*•]\s+/, '').trim()).filter(item => item.length > 0);
   }
 
   // Extract lines that look like list items (start with dash or number after some whitespace)
-  items = section.match(/^\s*[-*•]\s+(.+)$/gm);
-  if (items && items.length > 0) {
-    return items.map((item) => item.replace(/^\s*[-*•]\s+/, '').trim()).filter(item => item.length > 0);
+  let spacedItems = section.match(/^\s*[-*•]\s+(.+)$/gm);
+  if (spacedItems && spacedItems.length > 0) {
+    return spacedItems.map((item) => item.replace(/^\s*[-*•]\s+/, '').trim()).filter(item => item.length > 0);
   }
 
   // If no list markers, split by newlines but filter out empty lines and headers
@@ -409,6 +477,7 @@ function extractList(text: string, ...headers: string[]): string[] {
       return line.length > 0 && 
              !line.match(/^##/) && 
              !line.match(/^#{1,6}\s/) &&
-             !line.match(/^\*\*/);
+             !line.match(/^\*\*[^*]+\*\*\s*$/) && // Standalone bold text
+             !line.match(/^\*\*[^*]+:\*\*\s*$/); // Standalone bold header with colon but no content
     });
 }
