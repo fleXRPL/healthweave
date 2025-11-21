@@ -18,8 +18,43 @@ app.use(helmet());
 // CORS configuration
 app.use(
   cors({
-    origin: config.cors.origin,
+    origin: (origin, callback) => {
+      // Allow requests with no origin (like mobile apps or curl requests)
+      if (!origin) return callback(null, true);
+      
+      // In development, be more permissive - allow localhost, 127.0.0.1, and local network IPs
+      if (config.env === 'development') {
+        // Allow localhost variants
+        if (
+          origin.startsWith('http://localhost:') ||
+          origin.startsWith('http://127.0.0.1:') ||
+          origin.startsWith('http://192.168.') ||
+          origin.startsWith('http://10.') ||
+          origin.startsWith('http://172.')
+        ) {
+          return callback(null, true);
+        }
+      }
+      
+      // In production, use strict origin list
+      const allowedOrigins = [
+        config.cors.origin,
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+        'http://127.0.0.1:3001',
+      ];
+      
+      if (allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        logger.warn('CORS blocked origin', { origin, allowedOrigins, environment: config.env });
+        callback(new Error('Not allowed by CORS'));
+      }
+    },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
   })
 );
 
