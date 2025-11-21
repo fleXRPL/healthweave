@@ -28,7 +28,7 @@ healthweave/
 ├── frontend          # Frontend application
 │   ├── node_modules  # Dependencies
 │   └── src           # Source code
-├── Liver Tests       # Liver Tests
+├── diagnostic-tests  # Mock lab tests
 ├── localstack-data   # LocalStack data
 ├── logo              # Logo files
 └── wiki              # Wiki
@@ -93,12 +93,27 @@ Uses real AWS Bedrock with Claude and HIPAA compliance
 - Zero data retention with AI provider
 - AWS Bedrock BAA required for production
 
-## Documentation
+## Local Documentation
 
 - [Architecture](./docs/ARCHITECTURE.md)
 - [Development Guide](./docs/DEVELOPMENT.md)
 - [Deployment Guide](./docs/DEPLOYMENT.md)
 - [Compliance](./docs/COMPLIANCE.md)
+
+## WIKI Documentation
+
+- [Architecture](https://github.com/fleXRPL/healthweave/wiki/Architecture)
+- [Development Guide](https://github.com/fleXRPL/healthweave/wiki/Development-Guide)
+- [Deployment Guide](https://github.com/fleXRPL/healthweave/wiki/Deployment-Guide)
+- [Compliance](https://github.com/fleXRPL/healthweave/wiki/Compliance)
+- [Business Planning](https://github.com/fleXRPL/healthweave/wiki/Business-Planning)
+- [Value Proposition](https://github.com/fleXRPL/healthweave/wiki/Value-Proposition)
+- [Use Cases](https://github.com/fleXRPL/healthweave/wiki/Use-Cases)
+- [ROI Analysis](https://github.com/fleXRPL/healthweave/wiki/ROI-Analysis)
+- [Contributing](https://github.com/fleXRPL/healthweave/wiki/Contributing)
+- [Configuration](https://github.com/fleXRPL/healthweave/wiki/Configuration)
+- [Operations](https://github.com/fleXRPL/healthweave/wiki/Operations)
+- [Deployment](https://github.com/fleXRPL/healthweave/wiki/Deployment)
 
 ## License
 
