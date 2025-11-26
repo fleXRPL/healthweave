@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>HealthWeave Medical Synthesis Architecture</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background: #f5f7fa;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+        }
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            padding: 40px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #29628B;
+            margin-bottom: 40px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>HealthWeave Medical Synthesis Architecture</h1>
+        <svg width="1300" height="900" viewBox="0 0 1300 900" xmlns="http://www.w3.org/2000/svg">
+            <!-- Define gradients and styles -->
+            <defs>
+                <linearGradient id="specialty-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+                    <stop offset="0%" style="stop-color:#4693C3;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#29628B;stop-opacity:1" />
+                </linearGradient>
+                
+                <linearGradient id="synthesis-gradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                    <stop offset="0%" style="stop-color:#1C466A;stop-opacity:1" />
+                    <stop offset="100%" style="stop-color:#29628B;stop-opacity:1" />
+                </linearGradient>
+                
+                <filter id="glow">
+                    <feGaussianBlur stdDeviation="3" result="coloredBlur"/>
+                    <feMerge>
+                        <feMergeNode in="coloredBlur"/>
+                        <feMergeNode in="SourceGraphic"/>
+                    </feMerge>
+                </filter>
+                
+                <marker id="arrowhead" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto">
+                    <polygon points="0 0, 10 3, 0 6" fill="#4693C3" />
+                </marker>
+            </defs>
+            
+            <!-- Title -->
+            <text x="650" y="30" font-size="24" font-weight="bold" fill="#29628B" text-anchor="middle">
+                Specialized Medical Domain Prompts → Unified Synthesis → Comprehensive Assessment
+            </text>
+            
+            <!-- Input Documents (Left side) -->
+            <g id="input-documents">
+                <text x="100" y="120" font-size="16" font-weight="bold" fill="#2D343F">Input Documents</text>
+                
+                <!-- Document icons -->
+                <rect x="50" y="140" width="80" height="100" rx="5" fill="#E8F4F8" stroke="#4693C3" stroke-width="2"/>
+                <text x="90" y="180" font-size="12" fill="#29628B" text-anchor="middle">Lab Results</text>
+                <text x="90" y="200" font-size="12" fill="#29628B" text-anchor="middle">Imaging</text>
+                <text x="90" y="220" font-size="12" fill="#29628B" text-anchor="middle">Clinical Notes</text>
+                
+                <rect x="50" y="260" width="80" height="100" rx="5" fill="#E8F4F8" stroke="#4693C3" stroke-width="2"/>
+                <text x="90" y="300" font-size="12" fill="#29628B" text-anchor="middle">Genetic</text>
+                <text x="90" y="320" font-size="12" fill="#29628B" text-anchor="middle">Reports</text>
+                
+                <rect x="50" y="380" width="80" height="100" rx="5" fill="#E8F4F8" stroke="#4693C3" stroke-width="2"/>
+                <text x="90" y="420" font-size="12" fill="#29628B" text-anchor="middle">Medication</text>
+                <text x="90" y="440" font-size="12" fill="#29628B" text-anchor="middle">Lists</text>
+                
+                <rect x="50" y="500" width="80" height="100" rx="5" fill="#E8F4F8" stroke="#4693C3" stroke-width="2"/>
+                <text x="90" y="540" font-size="12" fill="#29628B" text-anchor="middle">Family</text>
+                <text x="90" y="560" font-size="12" fill="#29628B" text-anchor="middle">History</text>
+            </g>
+            
+            <!-- Specialty Prompt Modules (Middle left) -->
+            <g id="specialty-prompts">
+                <text x="280" y="120" font-size="16" font-weight="bold" fill="#2D343F">Specialized Domain Prompts</text>
+                
+                <!-- Genetic Counseling Prompt -->
+                <rect x="220" y="140" width="180" height="80" rx="8" fill="url(#specialty-gradient)" stroke="#29628B" stroke-width="2"/>
+                <text x="310" y="170" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Genetic Counseling</text>
+                <text x="310" y="190" font-size="10" fill="white" text-anchor="middle">• ACMG Classification</text>
+                <text x="310" y="205" font-size="10" fill="white" text-anchor="middle">• Variant Interpretation</text>
+                
+                <!-- Cardiology Prompt -->
+                <rect x="220" y="240" width="180" height="80" rx="8" fill="url(#specialty-gradient)" stroke="#29628B" stroke-width="2"/>
+                <text x="310" y="270" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Cardiology</text>
+                <text x="310" y="290" font-size="10" fill="white" text-anchor="middle">• Risk Stratification</text>
+                <text x="310" y="305" font-size="10" fill="white" text-anchor="middle">• Medication Management</text>
+                
+                <!-- Oncology Prompt -->
+                <rect x="220" y="340" width="180" height="80" rx="8" fill="url(#specialty-gradient)" stroke="#29628B" stroke-width="2"/>
+                <text x="310" y="370" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Oncology</text>
+                <text x="310" y="390" font-size="10" fill="white" text-anchor="middle">• Treatment Correlation</text>
+                <text x="310" y="405" font-size="10" fill="white" text-anchor="middle">• Tumor Analysis</text>
+                
+                <!-- Hepatology Prompt -->
+                <rect x="220" y="440" width="180" height="80" rx="8" fill="url(#specialty-gradient)" stroke="#29628B" stroke-width="2"/>
+                <text x="310" y="470" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Hepatology</text>
+                <text x="310" y="490" font-size="10" fill="white" text-anchor="middle">• Liver Function Analysis</text>
+                <text x="310" y="505" font-size="10" fill="white" text-anchor="middle">• Fibrosis Assessment</text>
+                
+                <!-- Pharmacogenomics Prompt -->
+                <rect x="220" y="540" width="180" height="80" rx="8" fill="url(#specialty-gradient)" stroke="#29628B" stroke-width="2"/>
+                <text x="310" y="570" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Pharmacogenomics</text>
+                <text x="310" y="590" font-size="10" fill="white" text-anchor="middle">• Drug Metabolism</text>
+                <text x="310" y="605" font-size="10" fill="white" text-anchor="middle">• Interaction Analysis</text>
+                
+                <!-- Immunology Prompt -->
+                <rect x="220" y="640" width="180" height="80" rx="8" fill="url(#specialty-gradient)" stroke="#29628B" stroke-width="2"/>
+                <text x="310" y="670" font-size="14" font-weight="bold" fill="white" text-anchor="middle">Immunology</text>
+                <text x="310" y="690" font-size="10" fill="white" text-anchor="middle">• Autoimmune Analysis</text>
+                <text x="310" y="705" font-size="10" fill="white" text-anchor="middle">• Immune Response</text>
+            </g>
+            
+            <!-- Arrows from documents to prompts -->
+            <line x1="130" y1="190" x2="220" y2="180" stroke="#4693C3" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.6"/>
+            <line x1="130" y1="310" x2="220" y2="280" stroke="#4693C3" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.6"/>
+            <line x1="130" y1="430" x2="220" y2="380" stroke="#4693C3" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.6"/>
+            <line x1="130" y1="550" x2="220" y2="480" stroke="#4693C3" stroke-width="2" marker-end="url(#arrowhead)" opacity="0.6"/>
+            
+            <!-- Central Synthesis Engine (The Singularity) -->
+            <g id="synthesis-core">
+                <text x="650" y="120" font-size="16" font-weight="bold" fill="#2D343F" text-anchor="middle">AI Synthesis Engine</text>
+                
+                <!-- Large central circle with glow -->
+                <circle cx="650" cy="420" r="120" fill="url(#synthesis-gradient)" stroke="#1C466A" stroke-width="4" filter="url(#glow)"/>
+                
+                <!-- Inner details -->
+                <text x="650" y="380" font-size="18" font-weight="bold" fill="white" text-anchor="middle">COMPREHENSIVE</text>
+                <text x="650" y="405" font-size="18" font-weight="bold" fill="white" text-anchor="middle">SYNTHESIS</text>
+                <text x="650" y="430" font-size="12" fill="white" text-anchor="middle">───────────</text>
+                <text x="650" y="455" font-size="11" fill="white" text-anchor="middle">Cross-Specialty Analysis</text>
+                <text x="650" y="475" font-size="11" fill="white" text-anchor="middle">Pattern Recognition</text>
+                <text x="650" y="495" font-size="11" fill="white" text-anchor="middle">Clinical Correlation</text>
+                
+                <!-- Orbiting elements showing integration -->
+                <circle cx="550" cy="320" r="8" fill="#8CBEDC"/>
+                <circle cx="750" cy="320" r="8" fill="#8CBEDC"/>
+                <circle cx="550" cy="520" r="8" fill="#8CBEDC"/>
+                <circle cx="750" cy="520" r="8" fill="#8CBEDC"/>
+            </g>
+            
+            <!-- Arrows from specialty prompts to synthesis core -->
+            <path d="M 400 180 Q 500 300 550 370" stroke="#4693C3" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 400 280 Q 480 320 550 380" stroke="#4693C3" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 400 380 Q 480 400 550 410" stroke="#4693C3" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 400 480 Q 480 460 550 440" stroke="#4693C3" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 400 580 Q 480 520 550 460" stroke="#4693C3" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 400 680 Q 480 580 550 480" stroke="#4693C3" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            
+            <!-- Output Assessment Components (Right side) -->
+            <g id="output-components">
+                <text x="950" y="120" font-size="16" font-weight="bold" fill="#2D343F">Comprehensive Assessment</text>
+                
+                <!-- Executive Summary -->
+                <rect x="900" y="140" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="165" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Executive Summary</text>
+                <text x="1060" y="185" font-size="10" fill="#29628B" text-anchor="middle">High-level synthesis of all findings</text>
+                <text x="1060" y="200" font-size="10" fill="#29628B" text-anchor="middle">across all medical domains</text>
+                
+                <!-- Key Findings -->
+                <rect x="900" y="230" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="255" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Cross-Specialty Findings</text>
+                <text x="1060" y="275" font-size="10" fill="#29628B" text-anchor="middle">Connections identified across domains</text>
+                <text x="1060" y="290" font-size="10" fill="#29628B" text-anchor="middle">Pattern correlations & interactions</text>
+                
+                <!-- Genotype-Phenotype -->
+                <rect x="900" y="320" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="345" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Genotype-Phenotype Correlation</text>
+                <text x="1060" y="365" font-size="10" fill="#29628B" text-anchor="middle">How genetic factors explain clinical presentation</text>
+                <text x="1060" y="380" font-size="10" fill="#29628B" text-anchor="middle">Personalized risk assessment</text>
+                
+                <!-- Medication Analysis -->
+                <rect x="900" y="410" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="435" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Medication Interaction Analysis</text>
+                <text x="1060" y="455" font-size="10" fill="#29628B" text-anchor="middle">Cross-specialty drug interactions</text>
+                <text x="1060" y="470" font-size="10" fill="#29628B" text-anchor="middle">Pharmacogenomic considerations</text>
+                
+                <!-- Clinical Recommendations -->
+                <rect x="900" y="500" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="525" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Clinical Recommendations</text>
+                <text x="1060" y="545" font-size="10" fill="#29628B" text-anchor="middle">Evidence-based next steps</text>
+                <text x="1060" y="560" font-size="10" fill="#29628B" text-anchor="middle">Surveillance & monitoring protocols</text>
+                
+                <!-- Surveillance Plan -->
+                <rect x="900" y="590" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="615" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Integrated Surveillance Plan</text>
+                <text x="1060" y="635" font-size="10" fill="#29628B" text-anchor="middle">Coordinated monitoring across specialties</text>
+                <text x="1060" y="650" font-size="10" fill="#29628B" text-anchor="middle">Optimized appointment scheduling</text>
+                
+                <!-- Citations -->
+                <rect x="900" y="680" width="320" height="70" rx="8" fill="#E8F4F8" stroke="#29628B" stroke-width="2"/>
+                <text x="1060" y="705" font-size="14" font-weight="bold" fill="#29628B" text-anchor="middle">Evidence & Citations</text>
+                <text x="1060" y="725" font-size="10" fill="#29628B" text-anchor="middle">ClinVar, OMIM, PubMed references</text>
+                <text x="1060" y="740" font-size="10" fill="#29628B" text-anchor="middle">Clinical guideline alignments</text>
+            </g>
+            
+            <!-- Arrows from synthesis to output -->
+            <path d="M 770 370 Q 830 300 900 175" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 770 390 Q 830 330 900 265" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 770 410 Q 830 380 900 355" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 770 430 Q 830 435 900 445" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 770 450 Q 830 485 900 535" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 770 470 Q 830 535 900 625" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            <path d="M 770 490 Q 830 585 900 715" stroke="#29628B" stroke-width="3" fill="none" marker-end="url(#arrowhead)"/>
+            
+            <!-- Key Value Proposition Box -->
+            <rect x="100" y="780" width="1100" height="100" rx="8" fill="#FFF9E6" stroke="#F59E0B" stroke-width="3"/>
+            <text x="650" y="810" font-size="16" font-weight="bold" fill="#92400E" text-anchor="middle">The HealthWeave Advantage</text>
+            <text x="650" y="835" font-size="13" fill="#92400E" text-anchor="middle">Specialized domain prompts capture expert-level knowledge from each medical discipline</text>
+            <text x="650" y="855" font-size="13" fill="#92400E" text-anchor="middle">Central synthesis engine identifies critical connections that no single specialist would see</text>
+            <text x="650" y="870" font-size="13" fill="#92400E" text-anchor="middle">Comprehensive assessment provides actionable insights for patients and providers</text>
+        </svg>
+    </div>
+</body>
+</html>
