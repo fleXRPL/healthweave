@@ -6,30 +6,30 @@ HealthWeave is a HIPAA-compliant healthcare application that uses AWS Bedrock (C
 
 ## Architecture
 
-```
+```text
 ┌─────────────────────────────────────────────────────────────┐
-│                         Frontend (Next.js)                   │
-│                                                              │
-│  - File Upload Interface                                     │
-│  - Analysis Results Display                                  │
-│  - PDF Report Download                                       │
+│                         Frontend (Next.js)                  │
+│                                                             │
+│  - File Upload Interface                                    │
+│  - Analysis Results Display                                 │
+│  - PDF Report Download                                      │
 └─────────────────────┬───────────────────────────────────────┘
                       │ HTTP/REST
 ┌─────────────────────▼───────────────────────────────────────┐
-│                   Backend API (Node.js + Express)            │
-│                                                              │
-│  - Document Upload Handler                                   │
-│  - Analysis Orchestration                                    │
-│  - Report Generation                                         │
-│  - Audit Logging                                             │
-└──────┬────────┬────────┬────────┬────────┬─────────────────┘
-       │        │        │        │        │
-       │        │        │        │        │
-       ▼        ▼        ▼        ▼        ▼
-    ┌──────┐┌──────┐┌────────┐┌────────┐┌──────┐
-    │  S3  ││Bedrock││DynamoDB││Cognito││ Logs │
+│                   Backend API (Node.js + Express)           │
+│                                                             │
+│  - Document Upload Handler                                  │
+│  - Analysis Orchestration                                   │
+│  - Report Generation                                        │
+│  - Audit Logging                                            │
+└──────┬────────┬─────────┬────────┬────────┬─────────────────┘
+       │        │         │        │        │
+       │        │         │        │        │
+       ▼        ▼         ▼        ▼        ▼
+    ┌──────┐┌────────┐┌────────┐┌────────┐┌──────┐
+    │  S3  ││Bedrock ││DynamoDB││Cognito ││ Logs │
     │      ││(Claude)││        ││        ││      │
-    └──────┘└──────┘└────────┘└────────┘└──────┘
+    └──────┘└────────┘└────────┘└────────┘└──────┘
 ```
 
 ## Local Development Setup
@@ -56,6 +56,7 @@ docker-compose logs -f localstack
 ```
 
 LocalStack will:
+
 - Start on `http://localhost:4566`
 - Pull the Mistral model from Ollama (this may take a few minutes on first run)
 - Create S3 buckets and DynamoDB tables automatically
@@ -75,6 +76,7 @@ npm run dev
 The backend will start on `http://localhost:4000`
 
 **Backend Services:**
+
 - ✅ Express API server
 - ✅ AWS SDK configured for LocalStack
 - ✅ Bedrock integration (using Mistral locally)
@@ -97,6 +99,7 @@ npm run dev
 The frontend will start on `http://localhost:3000`
 
 **Frontend Features:**
+
 - ✅ Next.js 15 with App Router
 - ✅ Tailwind CSS styling
 - ✅ File upload with drag-and-drop
@@ -124,6 +127,7 @@ The frontend will start on `http://localhost:3000`
 - ⚠️ **Not HIPAA** - For development only
 
 **Configuration:**
+
 ```env
 AWS_ENDPOINT=http://localhost:4566
 BEDROCK_MODEL_ID=mistral
@@ -138,6 +142,7 @@ BEDROCK_MODEL_ID=mistral
 - ⚠️ **Requires Setup** - AWS account and BAA
 
 **Configuration:**
+
 ```env
 AWS_ENDPOINT=  # Leave empty for real AWS
 BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0
@@ -146,7 +151,7 @@ BEDROCK_MODEL_ID=anthropic.claude-3-sonnet-20240229-v1:0
 
 ## Project Structure
 
-```
+```bash
 healthweave/
 ├── backend/
 │   ├── src/
@@ -190,10 +195,12 @@ healthweave/
 ## API Endpoints
 
 ### POST /api/analyze
+
 Upload and analyze health documents
 
 **Request:**
-```
+
+```text
 Content-Type: multipart/form-data
 
 documents: File[]           # Medical documents (PDF, images, text)
@@ -202,6 +209,7 @@ userId: string              # User identifier
 ```
 
 **Response:**
+
 ```json
 {
   "success": true,
@@ -213,15 +221,19 @@ userId: string              # User identifier
 ```
 
 ### GET /api/reports/:reportId
+
 Retrieve a specific report
 
 ### GET /api/reports
+
 List all reports for a user
 
 ### GET /api/reports/:reportId/pdf
+
 Download report as PDF
 
 ### GET /health
+
 Health check endpoint
 
 ## Environment Variables
@@ -296,6 +308,7 @@ npm test
 ## Common Issues
 
 ### LocalStack not starting
+
 ```bash
 # Check Docker is running
 docker ps
@@ -306,17 +319,21 @@ docker-compose up -d
 ```
 
 ### Bedrock model download slow
+
 The first time LocalStack starts, it downloads the Mistral model from Ollama. This can take 5-10 minutes. Check logs:
+
 ```bash
 docker-compose logs -f localstack
 ```
 
 ### Backend can't connect to LocalStack
+
 - Verify LocalStack is running: `docker-compose ps`
 - Check AWS_ENDPOINT in .env.development
 - Try restarting backend: `npm run dev`
 
 ### Frontend API errors
+
 - Verify backend is running on port 4000
 - Check NEXT_PUBLIC_API_URL in .env.local
 - Check browser console for CORS errors
@@ -356,6 +373,7 @@ docker-compose logs -f localstack
 ## Support
 
 For issues or questions:
+
 1. Check the logs: `docker-compose logs -f`
 2. Review this documentation
 3. Check backend logs for errors
