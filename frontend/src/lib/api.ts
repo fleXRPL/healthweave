@@ -8,15 +8,18 @@ class ApiClient {
     this.client = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
       timeout: 120000, // 2 minutes for AI processing
-      headers: {
-        'Content-Type': 'application/json',
-      },
+      // Note: Don't set Content-Type here - let axios auto-set it for FormData
     });
 
-    // Add request interceptor for logging
+    // Add request interceptor for logging and Content-Type handling
     this.client.interceptors.request.use(
       (config) => {
         console.log(`API Request: ${config.method?.toUpperCase()} ${config.url}`);
+        // Only set Content-Type for non-FormData requests
+        // FormData requests need axios to auto-set the boundary
+        if (!(config.data instanceof FormData)) {
+          config.headers['Content-Type'] = 'application/json';
+        }
         return config;
       },
       (error) => {
@@ -62,11 +65,8 @@ class ApiClient {
     formData.append('userId', userId || 'test-user');
 
     try {
-      const response = await this.client.post<AnalyzeResponse>('/api/analyze', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      // Don't set Content-Type - let axios auto-set it with the boundary for FormData
+      const response = await this.client.post<AnalyzeResponse>('/api/analyze', formData);
 
       return response.data;
     } catch (error: any) {

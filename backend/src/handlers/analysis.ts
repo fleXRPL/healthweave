@@ -36,7 +36,7 @@ const upload = multer({
  * Upload and analyze health documents
  */
 export const analyzeDocuments = [
-  upload.array('documents', 10), // Allow up to 10 files
+  upload.array('documents', 25), // Allow up to 25 files
   async (req: Request, res: Response) => {
     const userId = req.body.userId || 'test-user'; // TODO: Get from JWT
     const patientContext = req.body.patientContext;
