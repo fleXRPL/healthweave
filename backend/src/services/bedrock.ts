@@ -233,7 +233,8 @@ class BedrockService {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           //model: 'llama3.2', Original model used
-          model: 'mistral',
+          //model: 'mistral',
+          model: 'ministral-3:latest',
           //model: 'llama3.1:70b', this was crashing the system big time!
           messages: [
             { role: 'system', content: systemPrompt },
