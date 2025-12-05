@@ -7,7 +7,7 @@ class ApiClient {
   constructor() {
     this.client = axios.create({
       baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
-      timeout: 120000, // 2 minutes for AI processing
+      timeout: 600000, // 10 minutes for large document sets with local LLMs
       // Note: Don't set Content-Type here - let axios auto-set it for FormData
     });
 

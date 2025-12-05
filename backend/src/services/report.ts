@@ -326,7 +326,7 @@ class ReportService {
         doc
           .fontSize(16)
           .fillColor('#29628B')
-          .text('Executive Summary', { underline: true })
+          .text('AI Summary', { underline: true })
           .moveDown(0.5);
 
         doc.fontSize(11).fillColor('#2D343F').text(stripMarkdown(report.summary), { align: 'justify' }).moveDown(2);

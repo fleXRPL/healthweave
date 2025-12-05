@@ -47,10 +47,16 @@ class BedrockService {
     documentContents: Map<string, string>,
     patientContext?: string
   ): Promise<string> {
-    logger.info('Starting health data analysis', {
-      documentCount: documents.length,
+    const startTime = Date.now();
+    const documentCount = documents.length;
+    
+    logger.info('═══════════════════════════════════════════════════════════');
+    logger.info('🏥 HEALTHWEAVE ANALYSIS STARTED', {
+      documentCount,
       hasContext: !!patientContext,
+      startTime: new Date(startTime).toISOString(),
     });
+    logger.info('═══════════════════════════════════════════════════════════');
 
     // Build the system prompt and messages (needed for fallbacks)
     const systemPrompt = this.buildSystemPrompt();
@@ -66,7 +72,23 @@ class BedrockService {
       // Invoke Bedrock model
       const response = await this.invokeModel(systemPrompt, messages);
 
-      logger.info('Health data analysis completed successfully');
+      const endTime = Date.now();
+      const durationMs = endTime - startTime;
+      const durationSec = (durationMs / 1000).toFixed(1);
+      const durationMin = (durationMs / 60000).toFixed(2);
+      
+      logger.info('═══════════════════════════════════════════════════════════');
+      logger.info('✅ HEALTHWEAVE ANALYSIS COMPLETED', {
+        documentCount,
+        durationSeconds: parseFloat(durationSec),
+        durationMinutes: parseFloat(durationMin),
+        durationFormatted: durationMs > 60000 
+          ? `${durationMin} minutes` 
+          : `${durationSec} seconds`,
+        endTime: new Date(endTime).toISOString(),
+      });
+      logger.info('═══════════════════════════════════════════════════════════');
+      
       return response;
     } catch (error: any) {
       // If Bedrock fails in development (e.g., LocalStack doesn't support bedrock-runtime),
@@ -99,7 +121,27 @@ class BedrockService {
         
         // Fallback to Ollama (free, local LLM)
         logger.info('Using Ollama as free local LLM fallback');
-        return await this.invokeOllama(systemPrompt, messages);
+        const ollamaResponse = await this.invokeOllama(systemPrompt, messages);
+        
+        const endTime = Date.now();
+        const durationMs = endTime - startTime;
+        const durationSec = (durationMs / 1000).toFixed(1);
+        const durationMin = (durationMs / 60000).toFixed(2);
+        
+        logger.info('═══════════════════════════════════════════════════════════');
+        logger.info('✅ HEALTHWEAVE ANALYSIS COMPLETED (Ollama)', {
+          documentCount,
+          model: 'mistral:latest',
+          durationSeconds: parseFloat(durationSec),
+          durationMinutes: parseFloat(durationMin),
+          durationFormatted: durationMs > 60000 
+            ? `${durationMin} minutes` 
+            : `${durationSec} seconds`,
+          endTime: new Date(endTime).toISOString(),
+        });
+        logger.info('═══════════════════════════════════════════════════════════');
+        
+        return ollamaResponse;
       }
       
       logger.error('Error analyzing health data', { 
@@ -227,27 +269,44 @@ class BedrockService {
     }
 
     try {
+      // Create abort controller with 10 minute timeout for large document sets
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
+      
+      logger.info('Starting Ollama request (10 min timeout)', { 
+        documentTokens: userTokens,
+        model: 'mistral:latest' 
+      });
+
       // Use chat API which handles system prompts better
       const response = await fetch('http://localhost:11434/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        signal: controller.signal,
         body: JSON.stringify({
-          //model: 'llama3.2', Original model used
-          //model: 'mistral',
-          model: 'ministral-3:latest',
-          //model: 'llama3.1:70b', this was crashing the system big time!
+          //model: 'llama3.2', // 2GB - very fast but may not follow complex prompts
+          model: 'mistral:latest', // 4.4GB - RECOMMENDED for M1 Max, good balance
+          //model: 'ministral-3',
+          //model: 'gemma2:27b', // 15GB - good but slower
+          //model: 'qwen2.5:14b', // echoes structure, weak analysis
+          //model: 'medllama2:latest', // medical Q&A focused
+          //model: 'meditron:latest', // echoes prompt structure, doesn't follow instructions
+          //model: 'qwen2.5:32b', // uses 30GB - too much RAM pressure on 32GB system
+          //model: 'llama3.1:70b', // crashes system - too large for 32GB RAM
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage },
           ],
           stream: false,
           options: {
-            temperature: 0.7,
+            temperature: 0.3,  // Lower = more consistent/deterministic output
             top_p: 0.9,
-            num_ctx: 32768,  // Increase context window (default is 2048-8192)
+            num_ctx: 32768,  // 32K context - needed to see all 14+ documents!
           },
         }),
       });
+      
+      clearTimeout(timeoutId); // Clear timeout if request completes
 
       if (!response.ok) {
         if (response.status === 0 || response.status === 500) {
@@ -277,10 +336,24 @@ class BedrockService {
       });
       return text;
     } catch (error: any) {
-      if (error.message?.includes('fetch failed') || error.code === 'ECONNREFUSED') {
-        throw new Error('Ollama is not running. Install from https://ollama.ai and run: ollama pull llama3.2');
+      logger.error('Ollama request failed', { 
+        errorName: error.name,
+        errorMessage: error.message,
+        errorCode: error.code,
+        estimatedTokens: totalTokens,
+      });
+      
+      if (error.name === 'AbortError') {
+        throw new Error('AI processing timed out after 10 minutes. Try uploading fewer documents.');
       }
-      throw error;
+      if (error.code === 'ECONNREFUSED') {
+        throw new Error('Ollama is not running. Start it with: ollama serve');
+      }
+      if (error.message?.includes('fetch failed')) {
+        throw new Error(`Ollama connection failed: ${error.cause?.message || error.message}. Make sure Ollama is running.`);
+      }
+      // Pass through the actual error message
+      throw new Error(`AI analysis failed: ${error.message}`);
     }
   }
 
@@ -414,7 +487,7 @@ RESPONSE STRUCTURE:
 
 Your analysis must follow this exact format:
 
-## Executive Summary
+## AI Summary
 [2-4 sentences providing the most critical findings and immediate clinical implications. Should read like a specialist's case summary. Include key citations for major claims.]
 
 ## Key Findings
@@ -506,7 +579,7 @@ CRITICAL REMINDERS:
 
 Please provide a comprehensive clinical analysis following this structure:
 
-1. **Executive Summary**
+1. **AI Summary**
    - What are the most important clinical findings?
    - What do they mean for the patient's health status?
    - What are the immediate clinical implications?

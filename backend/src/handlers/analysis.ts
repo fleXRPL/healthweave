@@ -59,6 +59,9 @@ export const analyzeDocuments = [
       req
     );
 
+    // Start timing for analysis
+    const analysisStartTime = Date.now();
+    
     try {
       // Validate files were uploaded
       if (!req.files || req.files.length === 0) {
@@ -126,7 +129,7 @@ export const analyzeDocuments = [
       });
 
       // Parse analysis result and create structured report
-      const summary = extractSection(analysisText, 'Executive Summary', 'Summary');
+      const summary = extractSection(analysisText, 'AI Summary', 'Executive Summary', 'Summary');
       const keyFindings = extractList(analysisText, 'Key Findings', 'Findings');
       const clinicalCorrelations = extractSection(analysisText, 'Clinical Correlations', 'Correlations');
       const recommendations = extractList(analysisText, 'Recommendations', 'Recommendation');
@@ -145,10 +148,11 @@ export const analyzeDocuments = [
         rawAnalysisPreview: analysisText.substring(0, 1000),
       });
 
-      // Enhance summary with correlations if available
-      let enhancedSummary = summary || analysisText.substring(0, 500) || 'Analysis complete';
+      // Enhance summary with correlations if available (no truncation!)
+      let enhancedSummary = summary || analysisText.substring(0, 2000) || 'Analysis complete';
       if (clinicalCorrelations && summary) {
-        enhancedSummary = `${summary}\n\n${clinicalCorrelations.substring(0, 300)}`;
+        // Include full correlations, not truncated
+        enhancedSummary = `${summary}\n\n${clinicalCorrelations}`;
       }
 
       // If extraction failed, try to extract from full text as fallback
@@ -204,18 +208,35 @@ export const analyzeDocuments = [
         req
       );
 
+      // Calculate analysis duration
+      const analysisEndTime = Date.now();
+      const analysisDurationMs = analysisEndTime - analysisStartTime;
+      const analysisDurationSeconds = Math.round(analysisDurationMs / 1000);
+      const analysisDurationFormatted = analysisDurationMs > 60000 
+        ? `${(analysisDurationMs / 60000).toFixed(1)} minutes`
+        : `${analysisDurationSeconds} seconds`;
+
       logger.info('Analysis completed successfully', {
         userId,
         reportId: report.id,
+        documentCount: uploadedDocs.length,
+        durationSeconds: analysisDurationSeconds,
+        durationFormatted: analysisDurationFormatted,
       });
 
-      // Return result
+      // Return result with timing info
       res.json({
         success: true,
         reportId: report.id,
         summary: report.summary,
         keyFindings: report.keyFindings,
         recommendations: report.recommendations,
+        // Analysis metadata
+        documentCount: uploadedDocs.length,
+        analysisDurationMs,
+        analysisDurationSeconds,
+        analysisDurationFormatted,
+        model: 'mistral:latest', // Current model being used
       });
     } catch (error: any) {
       const errorMessage = error?.message || String(error) || 'Unknown error';

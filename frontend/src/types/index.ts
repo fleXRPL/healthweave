@@ -34,6 +34,12 @@ export interface AnalyzeResponse {
   recommendations: string[];
   error?: string;
   message?: string;
+  // Analysis metadata
+  documentCount?: number;
+  analysisDurationMs?: number;
+  analysisDurationSeconds?: number;
+  analysisDurationFormatted?: string;
+  model?: string;
 }
 
 export interface ReportResponse {
