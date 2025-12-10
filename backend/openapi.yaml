@@ -1,0 +1,347 @@
+openapi: 3.0.3
+info:
+  title: HealthWeave API
+  description: |
+    AI-Powered Health Data Synthesis API
+    
+    HealthWeave analyzes patient medical documents and generates comprehensive 
+    clinical insights using advanced AI analysis.
+    
+    ## Authentication
+    Currently uses userId parameter. Production will use JWT via AWS Cognito.
+    
+    ## Rate Limits
+    - Analysis endpoint: 10 requests/hour
+    - Other endpoints: 100 requests/15 minutes
+  version: 1.0.0
+  contact:
+    name: HealthWeave Support
+    url: https://github.com/fleXRPL/healthweave
+  license:
+    name: Proprietary
+    url: https://github.com/fleXRPL/healthweave/blob/main/LICENSE
+
+servers:
+  - url: http://localhost:4000
+    description: Local development server
+  - url: https://api.healthweave.example.com
+    description: Production server
+
+tags:
+  - name: Health
+    description: Health check endpoints
+  - name: Analysis
+    description: Document analysis operations
+  - name: Reports
+    description: Report management operations
+
+paths:
+  /health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Returns the health status of the API
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /api/analyze:
+    post:
+      tags:
+        - Analysis
+      summary: Analyze health documents
+      description: |
+        Upload and analyze medical documents. Supports PDF, images, and text files.
+        
+        The AI will generate:
+        - Executive summary
+        - Key findings with clinical interpretations
+        - Evidence-based recommendations
+        - Full detailed analysis
+      operationId: analyzeDocuments
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required:
+                - documents
+              properties:
+                documents:
+                  type: array
+                  items:
+                    type: string
+                    format: binary
+                  description: Medical documents to analyze (max 25 files, 10MB each)
+                patientContext:
+                  type: string
+                  description: Optional context about the patient's condition
+                  example: "65-year-old male with history of CLL and liver disease"
+                userId:
+                  type: string
+                  description: User identifier (temporary - will come from JWT)
+                  example: "user-123"
+      responses:
+        '200':
+          description: Analysis completed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AnalysisResponse'
+        '400':
+          description: Invalid request (no files, invalid file type, etc.)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Analysis failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reports:
+    get:
+      tags:
+        - Reports
+      summary: List user reports
+      description: Retrieve all analysis reports for a user
+      operationId: getUserReports
+      parameters:
+        - name: limit
+          in: query
+          description: Maximum number of reports to return
+          schema:
+            type: integer
+            default: 50
+            maximum: 100
+        - name: userId
+          in: query
+          description: User identifier (temporary - will come from JWT)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Reports retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportsListResponse'
+        '500':
+          description: Failed to retrieve reports
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reports/{reportId}:
+    get:
+      tags:
+        - Reports
+      summary: Get a specific report
+      description: Retrieve a single analysis report by ID
+      operationId: getReport
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          description: Unique report identifier
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Report retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReportResponse'
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to retrieve report
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /api/reports/{reportId}/pdf:
+    get:
+      tags:
+        - Reports
+      summary: Download report as PDF
+      description: Generate and download a PDF version of the analysis report
+      operationId: downloadReportPDF
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          description: Unique report identifier
+          schema:
+            type: string
+            format: uuid
+        - name: userId
+          in: query
+          description: User identifier (temporary - will come from JWT)
+          schema:
+            type: string
+      responses:
+        '200':
+          description: PDF generated successfully
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+        '404':
+          description: Report not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Failed to generate PDF
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: healthy
+        timestamp:
+          type: string
+          format: date-time
+          example: "2025-01-01T00:00:00.000Z"
+        environment:
+          type: string
+          example: development
+
+    AnalysisResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        reportId:
+          type: string
+          format: uuid
+          example: "550e8400-e29b-41d4-a716-446655440000"
+        summary:
+          type: string
+          description: Executive summary of the analysis
+        keyFindings:
+          type: array
+          items:
+            type: string
+          description: List of key clinical findings
+        recommendations:
+          type: array
+          items:
+            type: string
+          description: List of clinical recommendations
+        documentCount:
+          type: integer
+          description: Number of documents analyzed
+        analysisDurationMs:
+          type: integer
+          description: Analysis duration in milliseconds
+        analysisDurationFormatted:
+          type: string
+          description: Human-readable duration
+          example: "45 seconds"
+        model:
+          type: string
+          description: AI model used for analysis
+          example: "mistral:latest"
+
+    ReportResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        report:
+          $ref: '#/components/schemas/AnalysisResult'
+
+    ReportsListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        reports:
+          type: array
+          items:
+            $ref: '#/components/schemas/AnalysisResult'
+
+    AnalysisResult:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        summary:
+          type: string
+        keyFindings:
+          type: array
+          items:
+            type: string
+        recommendations:
+          type: array
+          items:
+            type: string
+        citations:
+          type: array
+          items:
+            $ref: '#/components/schemas/Citation'
+        fullReport:
+          type: string
+          description: Complete analysis text
+
+    Citation:
+      type: object
+      properties:
+        source:
+          type: string
+        type:
+          type: string
+          enum: [document, research, clinical_guideline]
+        relevance:
+          type: string
+
+    ErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          description: Error type
+        message:
+          type: string
+          description: Detailed error message
+
