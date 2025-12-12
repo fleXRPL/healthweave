@@ -1,0 +1,37 @@
+# CODEOWNERS
+# This file defines code ownership for the HealthWeave repository.
+# Format: <pattern> <owner(s)>
+# Patterns are evaluated top-to-bottom; the last matching pattern wins.
+# More specific patterns should appear before general ones.
+
+# ============================================================================
+# Security-sensitive files
+# ============================================================================
+SECURITY.md @garotm
+
+# ============================================================================
+# Infrastructure and deployment
+# ============================================================================
+/infrastructure/ @garotm
+/docker-compose*.yml @garotm
+docker-compose.yml @garotm
+
+# ============================================================================
+# CI/CD and automation
+# ============================================================================
+.github/workflows/ @garotm
+
+# ============================================================================
+# Backend code
+# ============================================================================
+/backend/ @garotm
+
+# ============================================================================
+# Frontend code
+# ============================================================================
+/frontend/ @garotm
+
+# ============================================================================
+# Default owners for everything else
+# ============================================================================
+* @garotm
