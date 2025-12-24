@@ -24,6 +24,6 @@
     "postcss": "^8",
     "autoprefixer": "^10.4.23",
     "eslint": "^9",
-    "eslint-config-next": "15.1.4"
+    "eslint-config-next": "16.1.1"
   }
 }
