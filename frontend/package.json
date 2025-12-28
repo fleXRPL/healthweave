@@ -11,7 +11,7 @@
   "dependencies": {
     "next": "15.1.4",
     "react": "^19.2.3",
-    "react-dom": "^19.0.0",
+    "react-dom": "^19.2.3",
     "axios": "^1.7.9",
     "react-dropzone": "^14.3.5"
   },
