@@ -35,7 +35,7 @@
     "multer": "^2.0.2",
     "pdfjs-dist": "^5.4.449",
     "pdfkit": "^0.15.0",
-    "uuid": "^11.0.3",
+    "uuid": "^13.0.0",
     "winston": "^3.19.0"
   },
   "devDependencies": {
