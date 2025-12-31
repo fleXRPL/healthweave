@@ -1,45 +1,67 @@
+# ============================================
+# Dependabot Configuration
+# ============================================
+# Security-focused: Only creates PRs for security vulnerabilities
+# Version updates are disabled (open-pull-requests-limit: 0)
+# To enable version updates later, change limit to 5-10
+#
+# Note: Project board assignment handled by GitHub Project's
+# auto-add workflow (is:issue,pr is:open filter)
+
 version: 2
 updates:
+  # Backend (Node.js)
   - package-ecosystem: "npm"
     directory: "/backend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 0  # Security updates only
+    milestone: 2  # Security milestone
     reviewers:
       - "garotm"
     labels:
       - "dependencies"
+      - "security"
       - "backend"
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(security)"
 
+  # Frontend (Next.js)
   - package-ecosystem: "npm"
     directory: "/frontend"
     schedule:
-      interval: "weekly"
-      day: "monday"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 0  # Security updates only
+    milestone: 2  # Security milestone
     reviewers:
       - "garotm"
     labels:
       - "dependencies"
+      - "security"
       - "frontend"
     commit-message:
-      prefix: "chore(deps)"
+      prefix: "fix(security)"
 
+  # Docker
   - package-ecosystem: "docker"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 0  # Security updates only
+    milestone: 2  # Security milestone
     labels:
       - "dependencies"
+      - "security"
       - "infrastructure"
 
+  # GitHub Actions
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 0  # Security updates only
+    milestone: 2  # Security milestone
     labels:
       - "dependencies"
+      - "security"
       - "devops"
