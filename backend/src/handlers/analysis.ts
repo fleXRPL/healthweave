@@ -14,7 +14,7 @@ const upload = multer({
   limits: {
     fileSize: 10 * 1024 * 1024, // 10MB limit
   },
-  fileFilter: (req, file, cb) => {
+  fileFilter: (_req, file, cb) => {
     // Accept common document types
     const allowedTypes = [
       'application/pdf',
@@ -77,7 +77,7 @@ export const analyzeDocuments = [
 
       // Upload each file to S3 and extract content
       for (const file of files) {
-        const { key, url } = await storageService.uploadFile(
+        const { key, url: _url } = await storageService.uploadFile(
           userId,
           file.originalname,
           file.buffer,
@@ -238,6 +238,7 @@ export const analyzeDocuments = [
         analysisDurationFormatted,
         model: 'mistral:latest', // Current model being used
       });
+      return;
     } catch (error: any) {
       const errorMessage = error?.message || String(error) || 'Unknown error';
       const errorStack = error?.stack;
@@ -258,7 +259,7 @@ export const analyzeDocuments = [
         req
       );
 
-      res.status(500).json({
+      return res.status(500).json({
         success: false,
         error: 'Failed to analyze documents',
         message: errorMessage,
@@ -288,7 +289,7 @@ export const getReport = async (req: Request, res: Response) => {
 
     await auditService.logEvent(userId, 'REPORT_VIEW', `report:${reportId}`, true, {}, req);
 
-    res.json({
+    return res.json({
       success: true,
       report,
     });
@@ -299,7 +300,7 @@ export const getReport = async (req: Request, res: Response) => {
       reportId 
     });
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       error: 'Failed to retrieve report',
       message: error?.message || 'Unknown error',
@@ -385,7 +386,7 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
 
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename="healthweave-report-${reportId}.pdf"`);
-    res.send(pdfBuffer);
+    return res.send(pdfBuffer);
   } catch (error: any) {
     const errorMessage = error?.message || String(error) || 'Unknown error occurred';
     
@@ -407,7 +408,7 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
     
     // If headers were already sent (shouldn't happen), log and end
     logger.error('Headers already sent when error occurred', { reportId });
-    res.end();
+    return res.end();
   }
 };
 
