@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import { AnalyzeResponse } from '@/types';
 import api from '@/lib/api';
 
@@ -10,8 +11,8 @@ interface AnalysisResultsProps {
 /**
  * Convert markdown bold (**text**) to HTML strong tags
  */
-function renderMarkdown(text: string): JSX.Element {
-  const parts: (string | JSX.Element)[] = [];
+function renderMarkdown(text: string): React.JSX.Element {
+  const parts: (string | React.JSX.Element)[] = [];
   const regex = /\*\*([^*]+)\*\*/g;
   let lastIndex = 0;
   let match;
