@@ -10,6 +10,8 @@ import {
   ScanCommand,
 } from '@aws-sdk/lib-dynamodb';
 import PDFDocument from 'pdfkit';
+// @ts-ignore - marked types may not be available until package is installed
+import { marked } from 'marked';
 import config from '../utils/config';
 import logger from '../utils/logger';
 import { AnalysisResult } from '../types';
@@ -39,6 +41,401 @@ function stripMarkdown(text: string): string {
   cleaned = cleaned.replace(/\*/g, ''); // Any remaining *
   
   return cleaned.trim();
+}
+
+/**
+ * Clean up specific problematic character sequences that PDFKit can't render
+ * Only fixes the specific issues without affecting markdown syntax
+ */
+function cleanProblematicChars(text: string): string {
+  if (!text) return '';
+  
+  return text
+    // Fix the specific malformed sequence: /;AA'à or similar patterns
+    .replace(/\/;[A-Z]+'[àáâãä]/g, '') // Remove malformed sequences like /;AA'à
+    // Decode HTML entities that might appear
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, '"')
+    .replace(/&amp;/g, '&');
+}
+
+/**
+ * Render markdown content to PDF using PDFKit
+ * Properly handles headers, paragraphs, lists, bold, italic, and citations
+ */
+function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: string): void {
+  if (!markdown) return;
+
+  // Default text settings (defined outside try block for catch block access)
+  const defaultFontSize = 10;
+  const defaultColor = '#2D343F';
+  const lineSpacing = 0.5;
+
+  try {
+    // Parse markdown into tokens (don't sanitize before parsing - it breaks markdown!)
+    // @ts-ignore - marked may not be available until package is installed
+    const tokens = marked.lexer(markdown);
+    
+    // Track list state for proper indentation
+    let inOrderedList = false;
+    let inUnorderedList = false;
+    let listItemNumber = 0;
+    const listIndent = 20;
+
+    tokens.forEach((token: any) => {
+      // Check if we need a new page (with margin)
+      if (doc.y > doc.page.height - 100) {
+        doc.addPage();
+      }
+
+      switch (token.type) {
+        case 'heading': {
+          const heading = token as any;
+          const headingFontSize = heading.depth === 2 ? 14 : heading.depth === 3 ? 12 : 11;
+          
+          // Ensure headings start at left margin with no indentation
+          doc
+            .fontSize(headingFontSize)
+            .font('Helvetica-Bold')
+            .fillColor('#29628B')
+            .text(cleanProblematicChars(heading.text), { 
+              align: 'left',
+              indent: 0,  // Explicitly set no indentation
+              continued: false  // Ensure not in continued state
+            })
+            .moveDown(0.5);
+          
+          // Reset to defaults
+          doc.fontSize(defaultFontSize).font('Helvetica').fillColor(defaultColor);
+          break;
+        }
+
+        case 'paragraph': {
+          const paragraph = token as any;
+          renderInlineContent(doc, paragraph.tokens || [], defaultFontSize, defaultColor);
+          doc.moveDown(lineSpacing);
+          break;
+        }
+
+        case 'list': {
+          const list = token as any;
+          const wasInList = inOrderedList || inUnorderedList;
+          
+          if (list.ordered) {
+            inOrderedList = true;
+            inUnorderedList = false;
+            listItemNumber = 0;
+          } else {
+            inUnorderedList = true;
+            inOrderedList = false;
+          }
+
+          // Helper to render text with bold markdown (**text**) properly
+          const renderTextWithBold = (text: string) => {
+            if (!text) return;
+            
+            // Check if text contains **bold** markers
+            if (text.includes('**')) {
+              // Split by ** markers (keeping the delimiters in the array)
+              const parts = text.split(/(\*\*)/g);
+              let inBold = false;
+              
+              parts.forEach((part, index) => {
+                if (part === '**') {
+                  // Toggle bold state
+                  inBold = !inBold;
+                  if (inBold) {
+                    doc.font('Helvetica-Bold');
+                  } else {
+                    doc.font('Helvetica');
+                  }
+                } else if (part.trim()) {
+                  // Render the text part
+                  const isLast = index === parts.length - 1;
+                  doc.text(cleanProblematicChars(part), { 
+                    continued: !isLast || (isLast && inBold) // Continue if not last or if we're still in bold
+                  });
+                }
+              });
+              
+              // Ensure we reset to normal font at the end
+              doc.font('Helvetica');
+            } else {
+              // No bold markers, just render as normal text
+              doc.text(cleanProblematicChars(text), { continued: false });
+            }
+          };
+
+          list.items.forEach((item: any) => {
+            if (list.ordered) {
+              listItemNumber++;
+              const prefix = `${listItemNumber}. `;
+              doc
+                .fontSize(defaultFontSize)
+                .fillColor(defaultColor)
+                .text(prefix, { indent: listIndent, continued: true });
+              
+              // Render item content
+              if (item.tokens && item.tokens.length > 0) {
+                // Use parsed tokens (already has markdown parsed)
+                renderInlineContent(doc, item.tokens, defaultFontSize, defaultColor, false);
+              } else if (item.text) {
+                // If no tokens, manually handle bold markdown in text
+                renderTextWithBold(item.text);
+              }
+            } else {
+              const prefix = '• ';
+              doc
+                .fontSize(defaultFontSize)
+                .fillColor(defaultColor)
+                .text(prefix, { indent: listIndent, continued: true });
+              
+              // Render item content
+              if (item.tokens && item.tokens.length > 0) {
+                // Use parsed tokens (already has markdown parsed)
+                renderInlineContent(doc, item.tokens, defaultFontSize, defaultColor, false);
+              } else if (item.text) {
+                // If no tokens, manually handle bold markdown in text
+                renderTextWithBold(item.text);
+              }
+            }
+            
+            // Move down after each item for proper spacing
+            doc.moveDown(0.3);
+          });
+
+          if (!wasInList) {
+            doc.moveDown(lineSpacing);
+          }
+          
+          inOrderedList = false;
+          inUnorderedList = false;
+          break;
+        }
+
+        case 'code': {
+          const code = token as any;
+          doc
+            .fontSize(defaultFontSize - 1)
+            .font('Courier')
+            .fillColor('#666666')
+            .text(cleanProblematicChars(code.text), { indent: 20 })
+            .moveDown(lineSpacing);
+          
+          // Reset to defaults
+          doc.fontSize(defaultFontSize).font('Helvetica').fillColor(defaultColor);
+          break;
+        }
+
+        case 'blockquote': {
+          const blockquote = token as any;
+          doc
+            .fontSize(defaultFontSize - 1)
+            .fillColor('#666666')
+            .text(cleanProblematicChars(blockquote.raw || blockquote.text || ''), { indent: 30, align: 'left' })
+            .moveDown(lineSpacing);
+          
+          // Reset to defaults
+          doc.fontSize(defaultFontSize).fillColor(defaultColor);
+          break;
+        }
+
+        case 'hr': {
+          doc
+            .moveDown(0.5)
+            .strokeColor('#CCCCCC')
+            .lineWidth(0.5)
+            .moveTo(50, doc.y)
+            .lineTo(doc.page.width - 50, doc.y)
+            .stroke()
+            .moveDown(1);
+          break;
+        }
+
+        default:
+          // For any unhandled token types, try to render as plain text
+          if ('text' in token) {
+            doc
+              .fontSize(defaultFontSize)
+              .fillColor(defaultColor)
+              .text(cleanProblematicChars((token as any).text || ''), { align: 'justify' })
+              .moveDown(lineSpacing);
+          }
+          break;
+      }
+    });
+  } catch (error) {
+    logger.error('Error rendering markdown to PDF', { error });
+    // Fallback to plain text if markdown parsing fails
+    doc
+      .fontSize(defaultFontSize)
+      .fillColor(defaultColor)
+      .text(cleanProblematicChars(stripMarkdown(markdown)), { align: 'justify' });
+  }
+}
+
+/**
+ * Render inline content (text with formatting like bold, italic, links)
+ */
+function renderInlineContent(
+  doc: InstanceType<typeof PDFDocument>,
+  tokens: any[],
+  fontSize: number,
+  color: string,
+  continued: boolean = false
+): void {
+  tokens.forEach((token: any, index: number) => {
+    const isLast = index === tokens.length - 1;
+    
+    switch (token.type) {
+      case 'text': {
+        const textToken = token as any;
+        const text = cleanProblematicChars(textToken.text);
+        
+        // Check for citation patterns: [PMID: XXXXXXXX], [ClinVar: VCV000XXXXXX], [OMIM: XXXXXX]
+        const citationPattern = /\[(PMID|ClinVar|OMIM|Journal):\s*([^\]]+)\]/g;
+        const parts: Array<{ text: string; isCitation: boolean }> = [];
+        let lastIndex = 0;
+        let match: RegExpExecArray | null;
+        
+        // Reset regex lastIndex to avoid issues with global regex
+        citationPattern.lastIndex = 0;
+        
+        while ((match = citationPattern.exec(text)) !== null) {
+          // Add text before citation
+          if (match.index > lastIndex) {
+            parts.push({
+              text: text.substring(lastIndex, match.index),
+              isCitation: false,
+            });
+          }
+          
+          // Add citation
+          parts.push({
+            text: match[0],
+            isCitation: true,
+          });
+          
+          lastIndex = match.index + match[0].length;
+        }
+        
+        // Add remaining text
+        if (lastIndex < text.length) {
+          parts.push({
+            text: text.substring(lastIndex),
+            isCitation: false,
+          });
+        }
+        
+        // If no citations found, add entire text as single part
+        if (parts.length === 0) {
+          parts.push({ text, isCitation: false });
+        }
+        
+        // Render each part
+        parts.forEach((part, partIndex) => {
+          const isLastPart = partIndex === parts.length - 1;
+          // Only continue if this is not the last part AND not the last token AND continued is true
+          const shouldContinue = !isLastPart && !isLast && continued;
+          
+          if (part.isCitation) {
+            // Render citation in smaller, gray text
+            doc
+              .fontSize(fontSize - 2)
+              .font('Helvetica')
+              .fillColor('#888888')
+              .text(part.text, { continued: shouldContinue });
+          } else {
+            // Render regular text
+            doc
+              .fontSize(fontSize)
+              .font('Helvetica')
+              .fillColor(color)
+              .text(part.text, { continued: shouldContinue });
+          }
+        });
+        break;
+      }
+
+      case 'strong': {
+        const strongToken = token as any;
+        doc
+          .fontSize(fontSize)
+          .font('Helvetica-Bold')
+          .fillColor(color);
+        
+        const shouldContinue = !isLast && continued;
+        if (strongToken.tokens && strongToken.tokens.length > 0) {
+          renderInlineContent(doc, strongToken.tokens, fontSize, color, shouldContinue);
+        } else {
+          doc.text(cleanProblematicChars(strongToken.text || ''), { continued: shouldContinue });
+        }
+        break;
+      }
+
+      case 'em': {
+        const emToken = token as any;
+        doc
+          .fontSize(fontSize)
+          .font('Helvetica-Oblique')
+          .fillColor(color);
+        
+        const shouldContinue = !isLast && continued;
+        if (emToken.tokens && emToken.tokens.length > 0) {
+          renderInlineContent(doc, emToken.tokens, fontSize, color, shouldContinue);
+        } else {
+          doc.text(cleanProblematicChars(emToken.text || ''), { continued: shouldContinue });
+        }
+        break;
+      }
+
+      case 'link': {
+        const linkToken = token as any;
+        // Render link text (could style differently, but keeping simple for now)
+        doc
+          .fontSize(fontSize)
+          .font('Helvetica')
+          .fillColor('#4693C3'); // Link color
+        
+        const shouldContinue = !isLast && continued;
+        if (linkToken.tokens && linkToken.tokens.length > 0) {
+          renderInlineContent(doc, linkToken.tokens, fontSize, '#4693C3', shouldContinue);
+        } else {
+          doc.text(cleanProblematicChars(linkToken.text || linkToken.href || ''), { continued: shouldContinue });
+        }
+        
+        // Reset color
+        doc.fillColor(color);
+        break;
+      }
+
+      case 'code': {
+        const codeToken = token as any;
+        const shouldContinue = !isLast && continued;
+        doc
+          .fontSize(fontSize - 1)
+          .font('Courier')
+          .fillColor('#666666')
+          .text(cleanProblematicChars(codeToken.text), { continued: shouldContinue });
+        
+        // Reset to defaults
+        doc.fontSize(fontSize).font('Helvetica').fillColor(color);
+        break;
+      }
+
+      default:
+        // For any unhandled inline token, try to render text
+        if ('text' in token) {
+          const shouldContinue = !isLast && continued;
+          doc
+            .fontSize(fontSize)
+            .font('Helvetica')
+            .fillColor(color)
+            .text(cleanProblematicChars((token as any).text || ''), { continued: shouldContinue });
+        }
+        break;
+    }
+  });
 }
 
 class ReportService {
@@ -412,7 +809,7 @@ class ReportService {
 
         doc.moveDown(2);
 
-        // Full Report
+        // Full Report - Detailed Analysis with proper markdown rendering
         if (report.fullReport) {
           doc.addPage();
           doc
@@ -421,7 +818,8 @@ class ReportService {
             .text('Detailed Analysis', { underline: true })
             .moveDown(1);
 
-          doc.fontSize(10).fillColor('#2D343F').text(stripMarkdown(report.fullReport), { align: 'justify' });
+          // Render markdown with proper formatting
+          renderMarkdownToPDF(doc, report.fullReport);
         }
 
         // Footer
