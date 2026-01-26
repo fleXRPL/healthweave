@@ -290,70 +290,137 @@ function renderInlineContent(
     switch (token.type) {
       case 'text': {
         const textToken = token as any;
-        const text = cleanProblematicChars(textToken.text);
+        // Check for ** BEFORE cleaning, as cleanProblematicChars doesn't affect it
+        const rawText = textToken.text || '';
+        const hasBold = rawText.includes('**');
+        const text = cleanProblematicChars(rawText);
         
-        // Check for citation patterns: [PMID: XXXXXXXX], [ClinVar: VCV000XXXXXX], [OMIM: XXXXXX]
-        const citationPattern = /\[(PMID|ClinVar|OMIM|Journal):\s*([^\]]+)\]/g;
-        const parts: Array<{ text: string; isCitation: boolean }> = [];
-        let lastIndex = 0;
-        let match: RegExpExecArray | null;
-        
-        // Reset regex lastIndex to avoid issues with global regex
-        citationPattern.lastIndex = 0;
-        
-        while ((match = citationPattern.exec(text)) !== null) {
-          // Add text before citation
-          if (match.index > lastIndex) {
+        // If text contains **bold** markers, handle them first
+        if (hasBold) {
+          // Split by ** markers and render with bold formatting
+          const parts = text.split(/(\*\*)/g);
+          let inBold = false;
+          
+          parts.forEach((part, partIndex) => {
+            if (part === '**') {
+              inBold = !inBold;
+              if (inBold) {
+                doc.font('Helvetica-Bold');
+              } else {
+                doc.font('Helvetica');
+              }
+            } else if (part) {
+              // Check for citations in this text part
+              const citationPattern = /\[(PMID|ClinVar|OMIM|Journal):\s*([^\]]+)\]/g;
+              const citationParts: Array<{ text: string; isCitation: boolean }> = [];
+              let lastIndex = 0;
+              let match: RegExpExecArray | null;
+              
+              citationPattern.lastIndex = 0;
+              
+              while ((match = citationPattern.exec(part)) !== null) {
+                if (match.index > lastIndex) {
+                  citationParts.push({
+                    text: part.substring(lastIndex, match.index),
+                    isCitation: false,
+                  });
+                }
+                citationParts.push({
+                  text: match[0],
+                  isCitation: true,
+                });
+                lastIndex = match.index + match[0].length;
+              }
+              
+              if (lastIndex < part.length) {
+                citationParts.push({
+                  text: part.substring(lastIndex),
+                  isCitation: false,
+                });
+              }
+              
+              if (citationParts.length === 0) {
+                citationParts.push({ text: part, isCitation: false });
+              }
+              
+              // Render citation parts
+              citationParts.forEach((citationPart, citationIndex) => {
+                const isLastCitationPart = citationIndex === citationParts.length - 1;
+                const isLastPart = partIndex === parts.length - 1;
+                const shouldContinue = !isLastCitationPart || (!isLastPart && !isLast && continued);
+                
+                if (citationPart.isCitation) {
+                  doc
+                    .fontSize(fontSize - 2)
+                    .font('Helvetica')
+                    .fillColor('#888888')
+                    .text(citationPart.text, { continued: shouldContinue });
+                } else {
+                  doc
+                    .fontSize(fontSize)
+                    .font(inBold ? 'Helvetica-Bold' : 'Helvetica')
+                    .fillColor(color)
+                    .text(citationPart.text, { continued: shouldContinue });
+                }
+              });
+            }
+          });
+          
+          // Reset to normal font
+          doc.font('Helvetica');
+        } else {
+          // No bold markers, handle citations normally
+          const citationPattern = /\[(PMID|ClinVar|OMIM|Journal):\s*([^\]]+)\]/g;
+          const parts: Array<{ text: string; isCitation: boolean }> = [];
+          let lastIndex = 0;
+          let match: RegExpExecArray | null;
+          
+          citationPattern.lastIndex = 0;
+          
+          while ((match = citationPattern.exec(text)) !== null) {
+            if (match.index > lastIndex) {
+              parts.push({
+                text: text.substring(lastIndex, match.index),
+                isCitation: false,
+              });
+            }
             parts.push({
-              text: text.substring(lastIndex, match.index),
+              text: match[0],
+              isCitation: true,
+            });
+            lastIndex = match.index + match[0].length;
+          }
+          
+          if (lastIndex < text.length) {
+            parts.push({
+              text: text.substring(lastIndex),
               isCitation: false,
             });
           }
           
-          // Add citation
-          parts.push({
-            text: match[0],
-            isCitation: true,
-          });
-          
-          lastIndex = match.index + match[0].length;
-        }
-        
-        // Add remaining text
-        if (lastIndex < text.length) {
-          parts.push({
-            text: text.substring(lastIndex),
-            isCitation: false,
-          });
-        }
-        
-        // If no citations found, add entire text as single part
-        if (parts.length === 0) {
-          parts.push({ text, isCitation: false });
-        }
-        
-        // Render each part
-        parts.forEach((part, partIndex) => {
-          const isLastPart = partIndex === parts.length - 1;
-          // Only continue if this is not the last part AND not the last token AND continued is true
-          const shouldContinue = !isLastPart && !isLast && continued;
-          
-          if (part.isCitation) {
-            // Render citation in smaller, gray text
-            doc
-              .fontSize(fontSize - 2)
-              .font('Helvetica')
-              .fillColor('#888888')
-              .text(part.text, { continued: shouldContinue });
-          } else {
-            // Render regular text
-            doc
-              .fontSize(fontSize)
-              .font('Helvetica')
-              .fillColor(color)
-              .text(part.text, { continued: shouldContinue });
+          if (parts.length === 0) {
+            parts.push({ text, isCitation: false });
           }
-        });
+          
+          parts.forEach((part, partIndex) => {
+            const isLastPart = partIndex === parts.length - 1;
+            const shouldContinue = !isLastPart && !isLast && continued;
+            
+            if (part.isCitation) {
+              doc
+                .fontSize(fontSize - 2)
+                .font('Helvetica')
+                .fillColor('#888888')
+                .text(part.text, { continued: shouldContinue });
+            } else {
+              doc
+                .fontSize(fontSize)
+                .font('Helvetica')
+                .fillColor(color)
+                .text(part.text, { continued: shouldContinue });
+            }
+          });
+        }
         break;
       }
 
