@@ -9,8 +9,8 @@ import logger from '../utils/logger';
 import { BedrockMessage, HealthDocument } from '../types';
 
 class BedrockService {
-  private client: BedrockRuntimeClient;
-  private anthropicClient: Anthropic | null = null;
+  private readonly client: BedrockRuntimeClient;
+  private readonly anthropicClient: Anthropic | null = null;
 
   constructor() {
     const clientConfig: any = {
@@ -37,6 +37,83 @@ class BedrockService {
       this.anthropicClient = new Anthropic({ apiKey: anthropicApiKey });
       logger.info('Anthropic API client initialized for direct API calls');
     }
+  }
+
+  /**
+   * Check if Bedrock is unavailable based on error characteristics
+   */
+  private isBedrockUnavailable(error: any): boolean {
+    return !!(
+      config.aws.endpoint && (
+        error.name === 'InternalFailure' ||
+        error.$metadata?.httpStatusCode === 501 ||
+        error.__type === 'InternalFailure' ||
+        error.message?.includes('bedrock-runtime') ||
+        error.message?.includes('not yet been emulated')
+      )
+    );
+  }
+
+  /**
+   * Log analysis completion with duration metrics
+   */
+  private logAnalysisCompletion(
+    startTime: number,
+    documentCount: number,
+    model?: string
+  ): void {
+    const endTime = Date.now();
+    const durationMs = endTime - startTime;
+    const durationSec = (durationMs / 1000).toFixed(1);
+    const durationMin = (durationMs / 60000).toFixed(2);
+    
+    logger.info('═══════════════════════════════════════════════════════════');
+    logger.info(model ? '✅ HEALTHWEAVE ANALYSIS COMPLETED (Ollama)' : '✅ HEALTHWEAVE ANALYSIS COMPLETED', {
+      documentCount,
+      ...(model && { model }),
+      durationSeconds: Number.parseFloat(durationSec),
+      durationMinutes: Number.parseFloat(durationMin),
+      durationFormatted: durationMs > 60000 
+        ? `${durationMin} minutes` 
+        : `${durationSec} seconds`,
+      endTime: new Date(endTime).toISOString(),
+    });
+    logger.info('═══════════════════════════════════════════════════════════');
+  }
+
+  /**
+   * Handle fallback when Bedrock is unavailable
+   */
+  private async handleBedrockFallback(
+    systemPrompt: string,
+    messages: BedrockMessage[],
+    startTime: number,
+    documentCount: number,
+    error: any
+  ): Promise<string> {
+    logger.warn('Bedrock unavailable, trying Anthropic direct API', {
+      error: error.message || error.name,
+      errorType: error.name || error.__type,
+      statusCode: error.$metadata?.httpStatusCode,
+    });
+    
+    // Try using Anthropic direct API if available
+    if (this.anthropicClient) {
+      try {
+        const response = await this.invokeAnthropicDirect(systemPrompt, messages);
+        this.logAnalysisCompletion(startTime, documentCount);
+        return response;
+      } catch (anthropicError: any) {
+        logger.error('Anthropic API also failed', { error: anthropicError.message });
+        // Fall through to Ollama
+      }
+    }
+    
+    // Fallback to Ollama (free, local LLM)
+    logger.info('Using Ollama as free local LLM fallback');
+    const ollamaResponse = await this.invokeOllama(systemPrompt, messages);
+    this.logAnalysisCompletion(startTime, documentCount, 'mistral:latest');
+    return ollamaResponse;
   }
 
   /**
@@ -71,77 +148,17 @@ class BedrockService {
     try {
       // Invoke Bedrock model
       const response = await this.invokeModel(systemPrompt, messages);
-
-      const endTime = Date.now();
-      const durationMs = endTime - startTime;
-      const durationSec = (durationMs / 1000).toFixed(1);
-      const durationMin = (durationMs / 60000).toFixed(2);
-      
-      logger.info('═══════════════════════════════════════════════════════════');
-      logger.info('✅ HEALTHWEAVE ANALYSIS COMPLETED', {
-        documentCount,
-        durationSeconds: parseFloat(durationSec),
-        durationMinutes: parseFloat(durationMin),
-        durationFormatted: durationMs > 60000 
-          ? `${durationMin} minutes` 
-          : `${durationSec} seconds`,
-        endTime: new Date(endTime).toISOString(),
-      });
-      logger.info('═══════════════════════════════════════════════════════════');
-      
+      this.logAnalysisCompletion(startTime, documentCount);
       return response;
     } catch (error: any) {
-      // If Bedrock fails in development (e.g., LocalStack doesn't support bedrock-runtime),
-      // fall back to mock analysis
-      const isBedrockUnavailable = 
-        config.aws.endpoint && (
-          error.name === 'InternalFailure' ||
-          error.$metadata?.httpStatusCode === 501 ||
-          error.__type === 'InternalFailure' ||
-          (error.message && error.message.includes('bedrock-runtime')) ||
-          (error.message && error.message.includes('not yet been emulated'))
-        );
-
-      if (isBedrockUnavailable) {
-        logger.warn('Bedrock unavailable, trying Anthropic direct API', {
-          error: error.message || error.name,
-          errorType: error.name || error.__type,
-          statusCode: error.$metadata?.httpStatusCode,
-        });
-        
-        // Try using Anthropic direct API if available
-        if (this.anthropicClient) {
-          try {
-            return await this.invokeAnthropicDirect(systemPrompt, messages);
-          } catch (anthropicError: any) {
-            logger.error('Anthropic API also failed', { error: anthropicError.message });
-            // Fall through to Ollama
-          }
-        }
-        
-        // Fallback to Ollama (free, local LLM)
-        logger.info('Using Ollama as free local LLM fallback');
-        const ollamaResponse = await this.invokeOllama(systemPrompt, messages);
-        
-        const endTime = Date.now();
-        const durationMs = endTime - startTime;
-        const durationSec = (durationMs / 1000).toFixed(1);
-        const durationMin = (durationMs / 60000).toFixed(2);
-        
-        logger.info('═══════════════════════════════════════════════════════════');
-        logger.info('✅ HEALTHWEAVE ANALYSIS COMPLETED (Ollama)', {
+      if (this.isBedrockUnavailable(error)) {
+        return await this.handleBedrockFallback(
+          systemPrompt,
+          messages,
+          startTime,
           documentCount,
-          model: 'mistral:latest',
-          durationSeconds: parseFloat(durationSec),
-          durationMinutes: parseFloat(durationMin),
-          durationFormatted: durationMs > 60000 
-            ? `${durationMin} minutes` 
-            : `${durationSec} seconds`,
-          endTime: new Date(endTime).toISOString(),
-        });
-        logger.info('═══════════════════════════════════════════════════════════');
-        
-        return ollamaResponse;
+          error
+        );
       }
       
       logger.error('Error analyzing health data', { 
@@ -215,7 +232,7 @@ class BedrockService {
 
     // Convert messages format - Anthropic expects simpler format
     const anthropicMessages = messages.map(msg => ({
-      role: msg.role as 'user' | 'assistant',
+      role: msg.role,
       content: msg.content.map((c: any) => c.text || c).join('\n'),
     }));
 
