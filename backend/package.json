@@ -28,7 +28,7 @@
     "@aws-sdk/lib-dynamodb": "^3.975.0",
     "@aws-sdk/s3-request-presigner": "^3.971.0",
     "cors": "^2.8.5",
-    "dotenv": "^16.4.7",
+    "dotenv": "^17.2.3",
     "express": "^4.22.1",
     "helmet": "^8.0.0",
     "joi": "^17.13.3",
