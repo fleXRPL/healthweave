@@ -6,12 +6,9 @@ import {
 import {
   DynamoDBDocumentClient,
   PutCommand,
-  GetCommand,
   QueryCommand,
   ScanCommand,
-  UpdateCommand,
 } from '@aws-sdk/lib-dynamodb';
-import { v4 as uuidv4 } from 'uuid';
 import PDFDocument from 'pdfkit';
 import config from '../utils/config';
 import logger from '../utils/logger';
@@ -215,7 +212,7 @@ class ReportService {
             item.id === reportId && item.userId === userId
           );
           if (matchingItem) {
-            response = { Items: [matchingItem] };
+            response = { ...response, Items: [matchingItem] };
             logger.info('Found report via Scan fallback', { reportId });
           }
         }
