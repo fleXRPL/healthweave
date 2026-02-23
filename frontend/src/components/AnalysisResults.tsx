@@ -184,6 +184,27 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
         </div>
       </div>
 
+      {/* Questions for Your Doctor */}
+      {(result.questionsForDoctor?.length ?? 0) > 0 && (
+        <div className="bg-white shadow-lg rounded-lg overflow-hidden">
+          <div className="bg-primary-dark px-6 py-4">
+            <h2 className="text-xl font-bold text-white">Questions for Your Doctor</h2>
+          </div>
+          <div className="px-6 py-4">
+            <ul className="space-y-3">
+              {(result.questionsForDoctor ?? []).map((q, index) => (
+                <li key={index} className="flex items-start">
+                  <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-amber-100 text-amber-800 font-semibold text-sm mr-3">
+                    ?
+                  </span>
+                  <div className="text-gray-700 flex-1">{renderMarkdown(q)}</div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+
       {/* Actions */}
       <div className="bg-gray-50 rounded-lg p-6">
         <h3 className="text-lg font-semibold text-gray-900 mb-4">Next Steps</h3>

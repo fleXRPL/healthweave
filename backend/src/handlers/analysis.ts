@@ -135,6 +135,7 @@ export const analyzeDocuments = [
       const clinicalCorrelations = extractSection(analysisText, 'Clinical Correlations', 'Correlations');
       const recommendations = extractList(analysisText, 'Recommendations', 'Recommendation');
       const uncertainties = extractSection(analysisText, 'Uncertainties and Limitations', 'Uncertainties', 'Limitations');
+      const questionsForDoctor = extractList(analysisText, 'Questions for Your Doctor', 'Questions for your doctor', 'Questions for the doctor');
       
       logger.debug('Extracted report sections', {
         hasSummary: !!summary,
@@ -145,6 +146,7 @@ export const analyzeDocuments = [
         recommendationsCount: recommendations.length,
         recommendationsPreview: recommendations.slice(0, 2),
         hasUncertainties: !!uncertainties,
+        questionsForDoctorCount: questionsForDoctor.length,
         rawAnalysisLength: analysisText.length,
         rawAnalysisPreview: analysisText.substring(0, 1000),
       });
@@ -182,6 +184,17 @@ export const analyzeDocuments = [
         }
       }
 
+      let finalQuestionsForDoctor = questionsForDoctor;
+      if (questionsForDoctor.length === 0 && analysisText.length > 0) {
+        const qSection = analysisText.match(/##\s+Questions for Your Doctor[\s\S]*?(?=##|$)/i);
+        if (qSection) {
+          const qItems = qSection[0].match(/^\d+\.\s+.+$/gm) || qSection[0].match(/^[-*•]\s+.+$/gm);
+          if (qItems) {
+            finalQuestionsForDoctor = qItems.map((item) => item.replace(/^(\d+\.|[-*•])\s+/, '').trim());
+          }
+        }
+      }
+
       const report: AnalysisResult = {
         id: uuidv4(),
         userId,
@@ -193,6 +206,7 @@ export const analyzeDocuments = [
         fullReport: analysisText,
         documentNames: uploadedDocs.map((d) => d.fileName),
         modelUsed,
+        questionsForDoctor: (finalQuestionsForDoctor.length > 0 ? finalQuestionsForDoctor : undefined),
       };
 
       // Save report to DynamoDB
@@ -234,6 +248,7 @@ export const analyzeDocuments = [
         summary: report.summary,
         keyFindings: report.keyFindings,
         recommendations: report.recommendations,
+        questionsForDoctor: report.questionsForDoctor,
         documentNames: report.documentNames,
         modelUsed: report.modelUsed,
         documentCount: uploadedDocs.length,

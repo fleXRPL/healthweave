@@ -886,6 +886,31 @@ class ReportService {
 
         doc.moveDown(2);
 
+        // Questions for Your Doctor
+        doc
+          .fontSize(16)
+          .fillColor('#29628B')
+          .text('Questions for Your Doctor', { underline: true })
+          .moveDown(0.5);
+
+        if (report.questionsForDoctor && report.questionsForDoctor.length > 0) {
+          report.questionsForDoctor.forEach((q, index) => {
+            doc
+              .fontSize(11)
+              .fillColor('#2D343F')
+              .text(`${index + 1}. ${stripMarkdown(q)}`, { indent: 20 })
+              .moveDown(0.5);
+          });
+        } else {
+          doc
+            .fontSize(11)
+            .fillColor('#666666')
+            .text('None generated.', { indent: 20 })
+            .moveDown(0.5);
+        }
+
+        doc.moveDown(2);
+
         // Full Report - Detailed Analysis with proper markdown rendering
         if (report.fullReport) {
           doc.addPage();

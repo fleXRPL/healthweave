@@ -29,6 +29,8 @@ export interface AnalysisResult {
   documentNames?: string[];
   /** Model that generated the analysis (e.g. Bedrock model ID, claude-3-5-sonnet, mistral:latest) */
   modelUsed?: string;
+  /** Questions the patient can ask at their next visit (from findings/uncertainties) */
+  questionsForDoctor?: string[];
 }
 
 export interface Citation {

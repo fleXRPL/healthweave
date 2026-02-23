@@ -582,6 +582,9 @@ Example (this level of detail is required):
 - Areas where clinical judgment is needed
 - Gaps in information that would be helpful]
 
+## Questions for Your Doctor
+[REQUIRED: List 3-5 concrete questions the patient can ask at their next visit. Derive from key findings, recommendations, and uncertainties. Each question must be specific and actionable—e.g. "Given my thrombocytopenia and CLL, should I hold aspirin before my next procedure?" or "How often should we repeat liver elastography given my MASH F3?" Do NOT use generic questions. Format as a numbered list.]
+
 ## References
 [List the key citations used in this analysis, organized by category:
 - Clinical Guidelines
@@ -667,6 +670,9 @@ Please provide a comprehensive clinical analysis following this structure:
    - Limitations of current testing or documentation
    - Areas where clinical judgment is needed
    - Gaps in information that would be helpful
+
+6. **Questions for Your Doctor**
+   - List 3-5 specific questions the patient can ask at their next visit, derived from findings and uncertainties (e.g. about medications, procedures, or monitoring).
 
 **IMPORTANT:**
 - Provide a COMPREHENSIVE, DETAILED analysis—Key Findings and Recommendations must include specific values, ranges, and full actionable items with citations, not only high-level category headers.

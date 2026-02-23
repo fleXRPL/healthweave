@@ -20,6 +20,7 @@ export interface AnalysisResult {
   fullReport: string;
   documentNames?: string[];
   modelUsed?: string;
+  questionsForDoctor?: string[];
 }
 
 export interface Citation {
@@ -34,6 +35,7 @@ export interface AnalyzeResponse {
   summary: string;
   keyFindings: string[];
   recommendations: string[];
+  questionsForDoctor?: string[];
   error?: string;
   message?: string;
   // Analysis metadata
