@@ -22,24 +22,24 @@ import { AnalysisResult } from '../types';
  */
 function stripMarkdown(text: string): string {
   if (!text) return '';
-  
+
   // Remove markdown bold markers (**text**)
-  let cleaned = text.replace(/\*\*([^*]+)\*\*/g, '$1');
-  
+  let cleaned = text.replaceAll(/\*\*([^*]+)\*\*/g, '$1');
+
   // Remove markdown italic (*text* or _text_)
-  cleaned = cleaned.replace(/\*([^*]+)\*/g, '$1');
-  cleaned = cleaned.replace(/_([^_]+)_/g, '$1');
-  
+  cleaned = cleaned.replaceAll(/\*([^*]+)\*/g, '$1');
+  cleaned = cleaned.replaceAll(/_([^_]+)_/g, '$1');
+
   // Remove markdown code blocks (`code`)
-  cleaned = cleaned.replace(/`([^`]+)`/g, '$1');
-  
+  cleaned = cleaned.replaceAll(/`([^`]+)`/g, '$1');
+
   // Remove markdown links [text](url) -> text
-  cleaned = cleaned.replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1');
-  
+  cleaned = cleaned.replaceAll(/\[([^\]]+)\]\([^)]+\)/g, '$1');
+
   // Clean up any remaining markdown artifacts
-  cleaned = cleaned.replace(/\*\*/g, ''); // Any remaining **
-  cleaned = cleaned.replace(/\*/g, ''); // Any remaining *
-  
+  cleaned = cleaned.replaceAll('**', ''); // Any remaining **
+  cleaned = cleaned.replaceAll('*', ''); // Any remaining *
+
   return cleaned.trim();
 }
 
@@ -49,14 +49,14 @@ function stripMarkdown(text: string): string {
  */
 function cleanProblematicChars(text: string): string {
   if (!text) return '';
-  
+
   return text
     // Fix the specific malformed sequence: /;AA'à or similar patterns
-    .replace(/\/;[A-Z]+'[àáâãä]/g, '') // Remove malformed sequences like /;AA'à
+    .replaceAll(/\/;[A-Z]+'[àáâãä]/g, '') // Remove malformed sequences like /;AA'à
     // Decode HTML entities that might appear
-    .replace(/&#39;/g, "'")
-    .replace(/&quot;/g, '"')
-    .replace(/&amp;/g, '&');
+    .replaceAll('&#39;', "'")
+    .replaceAll('&quot;', '"')
+    .replaceAll('&amp;', '&');
 }
 
 /**
@@ -90,15 +90,17 @@ function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: st
 
       switch (token.type) {
         case 'heading': {
-          const heading = token as any;
-          const headingFontSize = heading.depth === 2 ? 14 : heading.depth === 3 ? 12 : 11;
+          const heading = token as { type: string; depth?: number; text?: string };
+          let headingFontSize = 11;
+          if (heading.depth === 2) headingFontSize = 14;
+          else if (heading.depth === 3) headingFontSize = 12;
           
           // Ensure headings start at left margin with no indentation
           doc
             .fontSize(headingFontSize)
             .font('Helvetica-Bold')
             .fillColor('#29628B')
-            .text(cleanProblematicChars(heading.text), { 
+            .text(cleanProblematicChars(heading.text ?? ''), { 
               align: 'left',
               indent: 0,  // Explicitly set no indentation
               continued: false  // Ensure not in continued state
@@ -111,14 +113,14 @@ function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: st
         }
 
         case 'paragraph': {
-          const paragraph = token as any;
+          const paragraph = token as { type: string; tokens?: unknown[] };
           renderInlineContent(doc, paragraph.tokens || [], defaultFontSize, defaultColor);
           doc.moveDown(lineSpacing);
           break;
         }
 
         case 'list': {
-          const list = token as any;
+          const list = token as { type: string; ordered?: boolean; items?: { text?: string; tokens?: unknown[] }[] };
           const wasInList = inOrderedList || inUnorderedList;
           
           if (list.ordered) {
@@ -166,7 +168,7 @@ function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: st
             }
           };
 
-          list.items.forEach((item: any) => {
+          list.items?.forEach((item: { text?: string; tokens?: unknown[] }) => {
             if (list.ordered) {
               listItemNumber++;
               const prefix = `${listItemNumber}. `;
@@ -214,12 +216,12 @@ function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: st
         }
 
         case 'code': {
-          const code = token as any;
+          const code = token as { type: string; text?: string };
           doc
             .fontSize(defaultFontSize - 1)
             .font('Courier')
             .fillColor('#666666')
-            .text(cleanProblematicChars(code.text), { indent: 20 })
+            .text(cleanProblematicChars(code.text ?? ''), { indent: 20 })
             .moveDown(lineSpacing);
           
           // Reset to defaults
@@ -228,7 +230,7 @@ function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: st
         }
 
         case 'blockquote': {
-          const blockquote = token as any;
+          const blockquote = token as { type: string; raw?: string; text?: string };
           doc
             .fontSize(defaultFontSize - 1)
             .fillColor('#666666')
@@ -258,7 +260,7 @@ function renderMarkdownToPDF(doc: InstanceType<typeof PDFDocument>, markdown: st
             doc
               .fontSize(defaultFontSize)
               .fillColor(defaultColor)
-              .text(cleanProblematicChars((token as any).text || ''), { align: 'justify' })
+              .text(cleanProblematicChars(String((token as { text?: string }).text ?? '')), { align: 'justify' })
               .moveDown(lineSpacing);
           }
           break;
@@ -289,7 +291,7 @@ function renderInlineContent(
     
     switch (token.type) {
       case 'text': {
-        const textToken = token as any;
+        const textToken = token as { type: string; text?: string };
         // Check for ** BEFORE cleaning, as cleanProblematicChars doesn't affect it
         const rawText = textToken.text || '';
         const hasBold = rawText.includes('**');
@@ -425,7 +427,7 @@ function renderInlineContent(
       }
 
       case 'strong': {
-        const strongToken = token as any;
+        const strongToken = token as { type: string; text?: string; tokens?: unknown[] };
         doc
           .fontSize(fontSize)
           .font('Helvetica-Bold')
@@ -441,7 +443,7 @@ function renderInlineContent(
       }
 
       case 'em': {
-        const emToken = token as any;
+        const emToken = token as { type: string; text?: string; tokens?: unknown[] };
         doc
           .fontSize(fontSize)
           .font('Helvetica-Oblique')
@@ -457,7 +459,7 @@ function renderInlineContent(
       }
 
       case 'link': {
-        const linkToken = token as any;
+        const linkToken = token as { type: string; text?: string; href?: string; tokens?: unknown[] };
         // Render link text (could style differently, but keeping simple for now)
         doc
           .fontSize(fontSize)
@@ -477,13 +479,13 @@ function renderInlineContent(
       }
 
       case 'code': {
-        const codeToken = token as any;
+        const codeToken = token as { type: string; text?: string };
         const shouldContinue = !isLast && continued;
         doc
           .fontSize(fontSize - 1)
           .font('Courier')
           .fillColor('#666666')
-          .text(cleanProblematicChars(codeToken.text), { continued: shouldContinue });
+          .text(cleanProblematicChars(codeToken.text ?? ''), { continued: shouldContinue });
         
         // Reset to defaults
         doc.fontSize(fontSize).font('Helvetica').fillColor(color);
@@ -498,7 +500,7 @@ function renderInlineContent(
             .fontSize(fontSize)
             .font('Helvetica')
             .fillColor(color)
-            .text(cleanProblematicChars((token as any).text || ''), { continued: shouldContinue });
+            .text(cleanProblematicChars(String((token as { text?: string }).text ?? '')), { continued: shouldContinue });
         }
         break;
     }
@@ -506,8 +508,8 @@ function renderInlineContent(
 }
 
 class ReportService {
-  private client: DynamoDBDocumentClient;
-  private tableName: string;
+  private readonly client: DynamoDBDocumentClient;
+  private readonly tableName: string;
 
   constructor() {
     const dynamoClient = new DynamoDBClient({
@@ -780,8 +782,16 @@ class ReportService {
           .fontSize(10)
           .fillColor('#2D343F')
           .text(`Report ID: ${report.id}`)
-          .text(`Generated: ${report.createdAt.toLocaleString()}`)
-          .moveDown(2);
+          .text(`Generated: ${report.createdAt.toLocaleString()}`);
+
+        // Provenance: model and source documents (when available)
+        if (report.modelUsed) {
+          doc.text(`Model: ${report.modelUsed}`);
+        }
+        if (report.documentNames && report.documentNames.length > 0) {
+          doc.text(`Based on ${report.documentNames.length} document(s): ${report.documentNames.join(', ')}`);
+        }
+        doc.moveDown(2);
 
         // Summary section
         doc
@@ -800,10 +810,10 @@ class ReportService {
           .moveDown(0.5);
 
         if (report.keyFindings && report.keyFindings.length > 0) {
+          const boldRegex = /\*\*([^*]+):\*\*\s*(.+)/;
           report.keyFindings.forEach((finding, index) => {
             const cleanedFinding = stripMarkdown(finding);
-            // Check if there's a bold header pattern to render properly
-            const boldMatch = finding.match(/\*\*([^*]+):\*\*\s*(.+)/);
+            const boldMatch = boldRegex.exec(finding);
             if (boldMatch) {
               const header = boldMatch[1];
               const content = boldMatch[2];
@@ -842,10 +852,10 @@ class ReportService {
           .moveDown(0.5);
 
         if (report.recommendations && report.recommendations.length > 0) {
+          const boldRecRegex = /\*\*([^*]+):\*\*\s*(.+)/;
           report.recommendations.forEach((rec, index) => {
             const cleanedRec = stripMarkdown(rec);
-            // Check if there's a bold header pattern to render properly
-            const boldMatch = rec.match(/\*\*([^*]+):\*\*\s*(.+)/);
+            const boldMatch = boldRecRegex.exec(rec);
             if (boldMatch) {
               const header = boldMatch[1];
               const content = boldMatch[2];
