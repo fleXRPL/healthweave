@@ -25,6 +25,10 @@ export interface AnalysisResult {
   recommendations: string[];
   citations: Citation[];
   fullReport: string;
+  /** Source document file names (for report provenance) */
+  documentNames?: string[];
+  /** Model that generated the analysis (e.g. Bedrock model ID, claude-3-5-sonnet, mistral:latest) */
+  modelUsed?: string;
 }
 
 export interface Citation {

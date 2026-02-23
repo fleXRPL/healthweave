@@ -90,7 +90,7 @@ class BedrockService {
     startTime: number,
     documentCount: number,
     error: any
-  ): Promise<string> {
+  ): Promise<{ analysisText: string; modelUsed: string }> {
     logger.warn('Bedrock unavailable, trying Anthropic direct API', {
       error: error.message || error.name,
       errorType: error.name || error.__type,
@@ -100,9 +100,9 @@ class BedrockService {
     // Try using Anthropic direct API if available
     if (this.anthropicClient) {
       try {
-        const response = await this.invokeAnthropicDirect(systemPrompt, messages);
+        const result = await this.invokeAnthropicDirect(systemPrompt, messages);
         this.logAnalysisCompletion(startTime, documentCount);
-        return response;
+        return result;
       } catch (anthropicError: any) {
         logger.error('Anthropic API also failed', { error: anthropicError.message });
         // Fall through to Ollama
@@ -111,19 +111,20 @@ class BedrockService {
     
     // Fallback to Ollama (free, local LLM)
     logger.info('Using Ollama as free local LLM fallback');
-    const ollamaResponse = await this.invokeOllama(systemPrompt, messages);
-    this.logAnalysisCompletion(startTime, documentCount, 'mistral:latest');
-    return ollamaResponse;
+    const result = await this.invokeOllama(systemPrompt, messages);
+    this.logAnalysisCompletion(startTime, documentCount, result.modelUsed);
+    return { analysisText: result.analysisText, modelUsed: result.modelUsed };
   }
 
   /**
    * Analyze health documents and generate clinical insights
+   * @returns Object with analysis markdown and the model identifier used (for provenance)
    */
   async analyzeHealthData(
     documents: HealthDocument[],
     documentContents: Map<string, string>,
     patientContext?: string
-  ): Promise<string> {
+  ): Promise<{ analysisText: string; modelUsed: string }> {
     const startTime = Date.now();
     const documentCount = documents.length;
     
@@ -147,9 +148,9 @@ class BedrockService {
 
     try {
       // Invoke Bedrock model
-      const response = await this.invokeModel(systemPrompt, messages);
+      const result = await this.invokeModel(systemPrompt, messages);
       this.logAnalysisCompletion(startTime, documentCount);
-      return response;
+      return result;
     } catch (error: any) {
       if (this.isBedrockUnavailable(error)) {
         return await this.handleBedrockFallback(
@@ -174,7 +175,7 @@ class BedrockService {
   /**
    * Invoke the Bedrock model
    */
-  private async invokeModel(systemPrompt: string, messages: BedrockMessage[]): Promise<string> {
+  private async invokeModel(systemPrompt: string, messages: BedrockMessage[]): Promise<{ analysisText: string; modelUsed: string }> {
     const modelId = config.bedrock.modelId;
 
     // Prepare the request body based on the model
@@ -214,7 +215,11 @@ class BedrockService {
 
     // Extract text from response
     if (responseBody.content && responseBody.content.length > 0) {
-      return responseBody.content[0].text;
+      const modelUsed = responseBody.model ?? modelId;
+      return {
+        analysisText: responseBody.content[0].text,
+        modelUsed: typeof modelUsed === 'string' ? modelUsed : modelId,
+      };
     }
 
     throw new Error('No content in Bedrock response');
@@ -223,7 +228,7 @@ class BedrockService {
   /**
    * Invoke Anthropic API directly (fallback when Bedrock unavailable)
    */
-  private async invokeAnthropicDirect(systemPrompt: string, messages: BedrockMessage[]): Promise<string> {
+  private async invokeAnthropicDirect(systemPrompt: string, messages: BedrockMessage[]): Promise<{ analysisText: string; modelUsed: string }> {
     if (!this.anthropicClient) {
       throw new Error('Anthropic client not initialized');
     }
@@ -255,13 +260,13 @@ class BedrockService {
     logger.info('Anthropic API response received successfully', { 
       contentLength: text.length 
     });
-    return text;
+    return { analysisText: text, modelUsed: 'claude-3-5-sonnet-20241022' };
   }
 
   /**
    * Invoke Ollama (free local LLM) as fallback
    */
-  private async invokeOllama(systemPrompt: string, messages: BedrockMessage[]): Promise<string> {
+  private async invokeOllama(systemPrompt: string, messages: BedrockMessage[]): Promise<{ analysisText: string; modelUsed: string }> {
     const userMessage = messages[0]?.content?.map((c: any) => c.text || c).join('\n') || '';
     
     // Estimate token count (rough: ~4 chars per token)
@@ -351,7 +356,7 @@ class BedrockService {
         model: data.model,
         preview: text.substring(0, 200)
       });
-      return text;
+      return { analysisText: text, modelUsed: data.model || 'mistral:latest' };
     } catch (error: any) {
       logger.error('Ollama request failed', { 
         errorName: error.name,

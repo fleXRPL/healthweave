@@ -116,7 +116,7 @@ export const analyzeDocuments = [
 
       // Analyze documents with Bedrock
       logger.info('Starting AI analysis');
-      const analysisText = await bedrockService.analyzeHealthData(
+      const { analysisText, modelUsed } = await bedrockService.analyzeHealthData(
         uploadedDocs,
         documentContents,
         patientContext
@@ -125,6 +125,7 @@ export const analyzeDocuments = [
       // Log the raw analysis text for debugging
       logger.debug('Raw analysis text received', { 
         length: analysisText.length,
+        modelUsed,
         preview: analysisText.substring(0, 500) 
       });
 
@@ -190,6 +191,8 @@ export const analyzeDocuments = [
         recommendations: finalRecommendations.length > 0 ? finalRecommendations : ['Review the full analysis report with your healthcare provider.'],
         citations: [], // TODO: Extract citations from analysis
         fullReport: analysisText,
+        documentNames: uploadedDocs.map((d) => d.fileName),
+        modelUsed,
       };
 
       // Save report to DynamoDB
@@ -224,19 +227,20 @@ export const analyzeDocuments = [
         durationFormatted: analysisDurationFormatted,
       });
 
-      // Return result with timing info
+      // Return result with timing and provenance
       res.json({
         success: true,
         reportId: report.id,
         summary: report.summary,
         keyFindings: report.keyFindings,
         recommendations: report.recommendations,
-        // Analysis metadata
+        documentNames: report.documentNames,
+        modelUsed: report.modelUsed,
         documentCount: uploadedDocs.length,
         analysisDurationMs,
         analysisDurationSeconds,
         analysisDurationFormatted,
-        model: 'mistral:latest', // Current model being used
+        model: report.modelUsed,
       });
       return;
     } catch (error: any) {

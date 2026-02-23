@@ -18,6 +18,8 @@ export interface AnalysisResult {
   recommendations: string[];
   citations: Citation[];
   fullReport: string;
+  documentNames?: string[];
+  modelUsed?: string;
 }
 
 export interface Citation {
@@ -36,6 +38,8 @@ export interface AnalyzeResponse {
   message?: string;
   // Analysis metadata
   documentCount?: number;
+  documentNames?: string[];
+  modelUsed?: string;
   analysisDurationMs?: number;
   analysisDurationSeconds?: number;
   analysisDurationFormatted?: string;
