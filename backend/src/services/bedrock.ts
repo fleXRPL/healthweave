@@ -538,20 +538,22 @@ Your analysis must follow this exact format:
 [2-4 substantive sentences: most critical findings, immediate clinical implications, key citations. Read like a specialist's case summary. Do not be vague or abbreviated.]
 
 ## Key Findings
-[REQUIRED: Organize by clinical category. Under EACH category include multiple sub-bullets with SPECIFIC values, reference ranges, and interpretations with citations. Do NOT list only category headers (e.g., "1. Hepatic Findings" "2. Hematologic Findings") without detailed sub-items.
-- For each finding: state value, units, reference range, and clinical significance WITH CITATIONS
+[REQUIRED—you MUST always include this section. Do NOT omit it. This section is rendered as a TABLE in the report with columns "Finding" and "Details". Format each row as a single line: **Category name:** Summary with values, units, reference ranges, and clinical significance (with citations). One such line per table row.
+- Each line = one table row: **Finding category:** Concise details (values, ranges, interpretation, citations). Combine sub-points into the Details text for that category.
 - Include both abnormal (only when outside stated range) and relevant normal values ("within normal limits" where it matters)
-- Use numbered categories with sub-bullets; each sub-bullet must contain concrete content
+- Use bold category names followed by a colon and the details on the same line so the report can fill the Finding | Details table
+- If documents are limited, still provide at least one row (e.g. **Summary of available findings:** [specific points from the documents])
 
-Example format (this level of detail is required):
-1. **Hepatic Findings**
-   - Liver stiffness 7.2 kPa (normal <7.0 kPa) indicating F2 fibrosis [METAVIR staging, AASLD Guidelines]
-   - ALT 45 U/L (reference 7-56)—within normal limits
-   - Bilirubin 2.7 mg/dL (elevated; reference 0.2-1.2) possibly related to liver disease or hemolysis [ACMG Guidelines]
-2. **Hematologic Findings**
-   - Lymphocytes 63% (elevated; reference 20-40%)—lymphocytosis consistent with CLL [NCCN Guidelines]
-   - Platelets 126 x 10³/µL (low; reference 145-450)—thrombocytopenia [ACMG Guidelines]
+Example format (each line becomes one table row; this level of detail is required):
+1. **Hepatic Findings:** Liver stiffness 7.2 kPa (normal <7.0 kPa) indicating F2 fibrosis [METAVIR staging, AASLD Guidelines]; ALT 45 U/L (reference 7-56)—within normal limits; Bilirubin 2.7 mg/dL (elevated; reference 0.2-1.2) possibly related to liver disease or hemolysis [ACMG Guidelines]
+2. **Hematologic Findings:** Lymphocytes 63% (elevated; reference 20-40%)—lymphocytosis consistent with CLL [NCCN Guidelines]; Platelets 126 x 10³/µL (low; reference 145-450)—thrombocytopenia [ACMG Guidelines]
 ]
+
+## Key Values (Quick Reference)
+[OPTIONAL: If the documents contain lab or imaging values, list the most important ones in a markdown table with exactly 4 columns: Test | Value | Unit | Reference. Include a header row, then one row per value. Example:
+| Hemoglobin | 12.1 | g/dL | 12-16 |
+| Creatinine | 1.2 | mg/dL | 0.7-1.3 |
+If no key values to highlight, omit this section.]
 
 ## Clinical Correlations
 [Identify relationships between findings WITH SUPPORTING CITATIONS:
@@ -603,7 +605,8 @@ CRITICAL REMINDERS:
 - Skip garbled or unreadable text, but provide deep analysis of all readable information
 - Focus on clinical analysis with evidence-based citations, not disclaimers
 - Check each value against its reference range before labeling abnormal—values within normal limits must not be flagged as abnormal
-- Output full depth: Key Findings with sub-bullets (specific values + ranges + interpretation), Recommendations as full sentences with citations—not abbreviated or header-only sections`;
+- Output full depth: Key Findings as table rows (**Category:** details per line), Recommendations as full sentences with citations—not abbreviated or header-only sections
+- Key Findings is MANDATORY and is displayed as a table (Finding | Details): always output at least one row in the format **Category:** details; never leave it empty or omit it`;
   }
 
   /**
@@ -642,14 +645,13 @@ Please provide a comprehensive clinical analysis following this structure:
    - What do they mean for the patient's health status?
    - What are the immediate clinical implications?
 
-2. **Key Findings**
-   For each significant finding:
-   - State the specific value/result with clinical context
-   - Explain what this finding means clinically
-   - Note any trends, patterns, or correlations with other findings
-   - Highlight abnormal or concerning values with interpretation
-   - Group related findings by organ system or clinical category
-   - Include reference ranges when available
+2. **Key Findings** (REQUIRED—must always be present; displayed as a table with columns Finding | Details)
+   Output each finding as one table row in the form **Category:** details (values, ranges, interpretation, citations).
+   - One line per row: bold category name, then colon, then the summary/details
+   - Include reference ranges and clinical significance; group by organ system or clinical category
+   - Do not omit this section
+
+2a. **Key Values (Quick Reference)** (optional): When lab or imaging values exist, add a 4-column markdown table after Key Findings: Test | Value | Unit | Reference.
 
 3. **Clinical Correlations**
    - How do findings from different documents relate to each other?
@@ -675,6 +677,7 @@ Please provide a comprehensive clinical analysis following this structure:
    - List 3-5 specific questions the patient can ask at their next visit, derived from findings and uncertainties (e.g. about medications, procedures, or monitoring).
 
 **IMPORTANT:**
+- Key Findings is REQUIRED and is rendered as a table (Finding | Details): use the format **Category:** details (one line per row); never omit this section.
 - Provide a COMPREHENSIVE, DETAILED analysis—Key Findings and Recommendations must include specific values, ranges, and full actionable items with citations, not only high-level category headers.
 - Provide CLINICAL INTERPRETATION, not just data extraction
 - Use appropriate medical terminology for specialists

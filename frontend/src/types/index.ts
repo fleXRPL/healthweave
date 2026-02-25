@@ -21,6 +21,14 @@ export interface AnalysisResult {
   documentNames?: string[];
   modelUsed?: string;
   questionsForDoctor?: string[];
+  keyValues?: KeyValueRow[];
+}
+
+export interface KeyValueRow {
+  name: string;
+  value: string;
+  unit?: string;
+  referenceRange?: string;
 }
 
 export interface Citation {

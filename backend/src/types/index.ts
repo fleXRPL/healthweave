@@ -31,6 +31,16 @@ export interface AnalysisResult {
   modelUsed?: string;
   /** Questions the patient can ask at their next visit (from findings/uncertainties) */
   questionsForDoctor?: string[];
+  /** Optional quick-reference table of key lab/imaging values */
+  keyValues?: KeyValueRow[];
+}
+
+/** One row for the key values (quick reference) table in the PDF */
+export interface KeyValueRow {
+  name: string;
+  value: string;
+  unit?: string;
+  referenceRange?: string;
 }
 
 export interface Citation {
