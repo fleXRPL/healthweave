@@ -731,6 +731,7 @@ function renderInlineContent(
 class ReportService {
   private readonly client: DynamoDBDocumentClient;
   private readonly tableName: string;
+  private tableInitPromise: Promise<void> | null = null;
 
   constructor() {
     const dynamoClient = new DynamoDBClient({
@@ -746,11 +747,15 @@ class ReportService {
 
     this.client = DynamoDBDocumentClient.from(dynamoClient);
     this.tableName = config.dynamodb.reportsTable;
+  }
 
-    // Initialize table (for LocalStack)
-    if (config.aws.endpoint) {
-      this.initializeTable();
-    }
+  /**
+   * Ensure table exists (for LocalStack). Called lazily on first use, not in constructor.
+   */
+  private async ensureTable(): Promise<void> {
+    if (!config.aws.endpoint) return;
+    this.tableInitPromise ??= this.initializeTable();
+    await this.tableInitPromise;
   }
 
   /**
@@ -811,6 +816,7 @@ class ReportService {
    * Save analysis report
    */
   async saveReport(report: AnalysisResult): Promise<void> {
+    await this.ensureTable();
     logger.info('Saving analysis report', { reportId: report.id, userId: report.userId });
 
     try {
@@ -848,6 +854,7 @@ class ReportService {
    * Get a report by ID
    */
   async getReport(reportId: string, userId: string): Promise<AnalysisResult | null> {
+    await this.ensureTable();
     logger.info('Retrieving report', { reportId, userId });
 
     try {
@@ -933,6 +940,7 @@ class ReportService {
    * Get all reports for a user
    */
   async getUserReports(userId: string, limit: number = 50): Promise<AnalysisResult[]> {
+    await this.ensureTable();
     logger.info('Retrieving user reports', { userId, limit });
 
     try {
