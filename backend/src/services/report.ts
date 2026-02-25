@@ -209,22 +209,29 @@ function keyFindingsForDisplay(
   if (filtered.length > 0) return filtered;
   if (!fullReport) return [];
 
-  const sectionMatch = fullReport.match(/##\s+Key Findings[\s\S]*?(?=\n##|$)/i);
+  const sectionRe = /##\s+Key Findings[\s\S]*?(?=\n##|$)/i;
+  const sectionMatch = sectionRe.exec(fullReport);
   if (!sectionMatch) return [];
 
   const text = sectionMatch[0];
-  const numbered = text.match(/^\d+\.\s+(.+)$/gm);
-  if (numbered && numbered.length > 0) {
-    const items = numbered
-      .map((item) => item.replace(/^\d+\.\s+/, '').trim())
-      .filter((x) => x.length > 0);
+  const numberedRe = /^\d+\.\s+(.+)$/gm;
+  const numbered: string[] = [];
+  let numMatch: RegExpExecArray | null;
+  while ((numMatch = numberedRe.exec(text)) !== null) {
+    numbered.push(numMatch[1].trim());
+  }
+  if (numbered.length > 0) {
+    const items = numbered.filter((x) => x.length > 0);
     return filterFindingsBeforeSectionHeaders(items).slice(0, 15);
   }
-  const bulleted = text.match(/^[-*•]\s+(.+)$/gm);
-  if (bulleted && bulleted.length > 0) {
-    const items = bulleted
-      .map((item) => item.replace(/^[-*•]\s+/, '').trim())
-      .filter((x) => x.length > 0);
+  const bulletedRe = /^[-*•]\s+(.+)$/gm;
+  const bulleted: string[] = [];
+  let bulletMatch: RegExpExecArray | null;
+  while ((bulletMatch = bulletedRe.exec(text)) !== null) {
+    bulleted.push(bulletMatch[1].trim());
+  }
+  if (bulleted.length > 0) {
+    const items = bulleted.filter((x) => x.length > 0);
     return filterFindingsBeforeSectionHeaders(items).slice(0, 15);
   }
   return [];
