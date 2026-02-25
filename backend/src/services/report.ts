@@ -27,7 +27,7 @@ const BODY_COLOR = '#2D343F';
 const MUTED_COLOR = '#666666';
 const MARGIN = 50;
 /** Min space (pt) from bottom of page before starting a new section (avoid orphan titles) */
-const MIN_SPACE_BEFORE_SECTION = 140;
+const MIN_SPACE_BEFORE_SECTION = 100;
 
 /**
  * Start a new page if current position is near the bottom (so section title + content stay together).
@@ -102,17 +102,23 @@ function drawKeyValuesTable(
   doc.moveDown(0.3);
   doc.font('Helvetica').fillColor(BODY_COLOR);
 
+  const pageBottom = doc.page.height - margin;
   for (const row of keyValues) {
     const name = stripMarkdown(row.name);
     const value = stripMarkdown(row.value);
     const unit = (row.unit && stripMarkdown(row.unit)) || '—';
     const ref = (row.referenceRange && stripMarkdown(row.referenceRange)) || '—';
-    const rowY = doc.y;
     const hName = doc.heightOfString(name, { width: colWidths.name });
     const hVal = doc.heightOfString(value, { width: colWidths.value });
     const hUnit = doc.heightOfString(unit, { width: colWidths.unit });
     const hRef = doc.heightOfString(ref, { width: colWidths.reference });
     const rowHeight = Math.max(hName, hVal, hUnit, hRef, 12) + rowPadding;
+
+    let rowY = doc.y;
+    if (rowY + rowHeight > pageBottom) {
+      doc.addPage();
+      rowY = doc.y;
+    }
 
     doc.text(name, xName, rowY, { width: colWidths.name });
     doc.text(value, xValue, rowY, { width: colWidths.value });
@@ -135,6 +141,18 @@ function parseFindingRow(finding: string): { category: string; details: string }
     };
   }
   const cleaned = stripMarkdown(finding).trim();
+  // Fallback: split on first ": " so "Hepatic Findings: Liver stiffness..." fills both columns
+  const colonIdx = cleaned.indexOf(': ');
+  if (colonIdx > 0 && colonIdx < 80) {
+    return {
+      category: cleaned.slice(0, colonIdx).trim(),
+      details: cleaned.slice(colonIdx + 2).trim(),
+    };
+  }
+  // Single phrase (no details): show in Details column so we don't get a column of dashes
+  if (cleaned.length > 60) {
+    return { category: 'Finding', details: cleaned };
+  }
   return { category: cleaned, details: '' };
 }
 
@@ -159,14 +177,21 @@ function drawKeyFindingsTable(
   doc.font('Helvetica').fillColor(BODY_COLOR);
 
   const rows = keyFindings.map(parseFindingRow);
+  const pageBottom = doc.page.height - margin;
 
   for (const row of rows) {
     const category = row.category || '—';
     const details = row.details || '—';
-    const rowY = doc.y;
     const hCat = doc.heightOfString(category, { width: colWidths.category });
     const hDetails = doc.heightOfString(details, { width: colWidths.details });
     const rowHeight = Math.max(hCat, hDetails, 12) + rowPadding;
+
+    // Keep row on one page to avoid huge gaps and split cells
+    let rowY = doc.y;
+    if (rowY + rowHeight > pageBottom) {
+      doc.addPage();
+      rowY = doc.y;
+    }
 
     doc.text(category, xCat, rowY, { width: colWidths.category });
     doc.text(details, xDetails, rowY, { width: colWidths.details });
@@ -189,9 +214,14 @@ const PDF_SECTION_STOPS = new Set([
 ]);
 
 function filterFindingsBeforeSectionHeaders(findings: string[]): string[] {
-  const stop = findings.findIndex((item) =>
-    PDF_SECTION_STOPS.has(stripMarkdown(item).toLowerCase().trim())
-  );
+  const stop = findings.findIndex((item) => {
+    const normalized = stripMarkdown(item).toLowerCase().trim();
+    if (PDF_SECTION_STOPS.has(normalized)) return true;
+    // Don't show questions or recommendation-style items in Key Findings
+    if (item.includes('?')) return true;
+    if (/^(consider|monitor|discuss|schedule|follow up|review the full)\s/i.test(normalized)) return true;
+    return false;
+  });
   if (stop < 0) return findings;
   if (stop === 0) return []; // first item is a section header – don't show wrong content
   return findings.slice(0, stop);
@@ -1128,16 +1158,19 @@ class ReportService {
           renderMarkdownToPDF(doc, report.fullReport);
         }
 
-        // Footer
+        // Footer (draw at bottom without advancing cursor to avoid extra blank page)
+        const footerY = doc.page.height - 50;
+        const savedY = doc.y;
         doc
           .fontSize(8)
           .fillColor('#888888')
           .text(
             'This report is for informational purposes only and should be reviewed by a qualified healthcare provider.',
             50,
-            doc.page.height - 50,
+            footerY,
             { align: 'center' }
           );
+        doc.y = savedY;
 
         doc.end();
       } catch (error) {
