@@ -6,7 +6,7 @@ import bedrockService from '../services/bedrock';
 import reportService from '../services/report';
 import auditService from '../services/audit';
 import logger from '../utils/logger';
-import { AnalysisResult, HealthDocument } from '../types';
+import { AnalysisResult, HealthDocument, KeyValueRow } from '../types';
 
 // Configure multer for file uploads
 const upload = multer({
@@ -136,7 +136,8 @@ export const analyzeDocuments = [
       const recommendations = extractList(analysisText, 'Recommendations', 'Recommendation');
       const uncertainties = extractSection(analysisText, 'Uncertainties and Limitations', 'Uncertainties', 'Limitations');
       const questionsForDoctor = extractList(analysisText, 'Questions for Your Doctor', 'Questions for your doctor', 'Questions for the doctor');
-      
+      const keyValues = extractKeyValuesTable(analysisText);
+
       logger.debug('Extracted report sections', {
         hasSummary: !!summary,
         summaryLength: summary?.length || 0,
@@ -147,6 +148,7 @@ export const analyzeDocuments = [
         recommendationsPreview: recommendations.slice(0, 2),
         hasUncertainties: !!uncertainties,
         questionsForDoctorCount: questionsForDoctor.length,
+        keyValuesCount: keyValues.length,
         rawAnalysisLength: analysisText.length,
         rawAnalysisPreview: analysisText.substring(0, 1000),
       });
@@ -172,7 +174,8 @@ export const analyzeDocuments = [
           finalKeyFindings = allBulleted.slice(0, 10).map(item => item.replace(/^[-*•]\s+/, '').trim());
         }
       }
-      
+      finalKeyFindings = truncateListAtSectionHeaders(finalKeyFindings);
+
       if (recommendations.length === 0 && analysisText.length > 0) {
         // Look for recommendations section in full text
         const recSection = analysisText.match(/##\s+Recommendations[\s\S]*?(?=##|$)/i);
@@ -207,6 +210,7 @@ export const analyzeDocuments = [
         documentNames: uploadedDocs.map((d) => d.fileName),
         modelUsed,
         questionsForDoctor: (finalQuestionsForDoctor.length > 0 ? finalQuestionsForDoctor : undefined),
+        keyValues: keyValues.length > 0 ? keyValues : undefined,
       };
 
       // Save report to DynamoDB
@@ -521,4 +525,62 @@ function extractList(text: string, ...headers: string[]): string[] {
              !line.match(/^\*\*[^*]+\*\*\s*$/) && // Standalone bold text
              !line.match(/^\*\*[^*]+:\*\*\s*$/); // Standalone bold header with colon but no content
     });
+}
+
+/**
+ * Extract key lab/imaging values from "Key Values (Quick Reference)" markdown table.
+ * Expects 4 columns: Test | Value | Unit | Reference (header row optional).
+ */
+function extractKeyValuesTable(text: string): KeyValueRow[] {
+  const section = extractSection(text, 'Key Values (Quick Reference)', 'Key Values');
+  if (!section) return [];
+
+  const rows: KeyValueRow[] = [];
+  const lines = section.split('\n').map((l) => l.trim()).filter(Boolean);
+
+  for (const line of lines) {
+    if (!line.includes('|')) continue;
+    const cells = line.split('|').map((c) => c.trim()).filter(Boolean);
+    if (cells.length < 2) continue;
+    const first = cells[0].toLowerCase();
+    if (first === 'test' || first === 'name' || first === '---') continue; // skip header/separator
+    rows.push({
+      name: cells[0] ?? '',
+      value: cells[1] ?? '',
+      unit: cells[2] ?? undefined,
+      referenceRange: cells[3] ?? undefined,
+    });
+  }
+
+  return rows;
+}
+
+/** Section header names that should not appear as list items (truncate list before these). */
+const SECTION_HEADER_STOPS = new Set([
+  'recommendations',
+  'clinical correlations',
+  'uncertainties and limitations',
+  'uncertainties',
+  'limitations',
+  'questions for your doctor',
+  'questions for the doctor',
+  'key values (quick reference)',
+  'key values',
+  'references',
+]);
+
+/**
+ * Truncate a list (e.g. keyFindings) at the first item that is a known section header,
+ * so we don't show Recommendations or other sections under Key Findings.
+ */
+function truncateListAtSectionHeaders(items: string[]): string[] {
+  const index = items.findIndex((item) =>
+    SECTION_HEADER_STOPS.has(stripMarkdownLike(item).toLowerCase().trim())
+  );
+  if (index <= 0) return items;
+  return items.slice(0, index);
+}
+
+function stripMarkdownLike(s: string): string {
+  return s.replaceAll(/\*\*([^*]+)\*\*/g, '$1').trim();
 }
