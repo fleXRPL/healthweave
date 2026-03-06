@@ -47,7 +47,8 @@ class ApiClient {
   async analyzeDocuments(
     files: File[],
     patientContext?: string,
-    userId?: string
+    userId?: string,
+    localOnly?: boolean
   ): Promise<AnalyzeResponse> {
     const formData = new FormData();
 
@@ -63,6 +64,11 @@ class ApiClient {
 
     // Add userId (temporary - will be from JWT in production)
     formData.append('userId', userId || 'test-user');
+
+    // Local-only / privacy mode: use Ollama, no data sent to AWS
+    if (localOnly) {
+      formData.append('localOnly', 'true');
+    }
 
     try {
       // Don't set Content-Type - let axios auto-set it with the boundary for FormData

@@ -40,10 +40,12 @@ export const analyzeDocuments = [
   async (req: Request, res: Response) => {
     const userId = req.body.userId || 'test-user'; // TODO: Get from JWT
     const patientContext = req.body.patientContext;
+    const localOnly = req.body.localOnly === 'true' || req.body.localOnly === true;
 
     logger.info('Starting document analysis', {
       userId,
       fileCount: req.files?.length || 0,
+      localOnly,
     });
 
     // Log audit event
@@ -114,12 +116,13 @@ export const analyzeDocuments = [
         documentCount: uploadedDocs.length,
       });
 
-      // Analyze documents with Bedrock
-      logger.info('Starting AI analysis');
+      // Analyze documents with Bedrock (or Ollama when localOnly)
+      logger.info('Starting AI analysis', { localOnly });
       const { analysisText, modelUsed } = await bedrockService.analyzeHealthData(
         uploadedDocs,
         documentContents,
-        patientContext
+        patientContext,
+        { useLocalOnly: localOnly }
       );
 
       // Log the raw analysis text for debugging
