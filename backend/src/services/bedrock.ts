@@ -118,25 +118,28 @@ class BedrockService {
 
   /**
    * Analyze health documents and generate clinical insights
+   * @param options.useLocalOnly When true, skip cloud AI (Bedrock/Anthropic) and use Ollama only
    * @returns Object with analysis markdown and the model identifier used (for provenance)
    */
   async analyzeHealthData(
     documents: HealthDocument[],
     documentContents: Map<string, string>,
-    patientContext?: string
+    patientContext?: string,
+    options?: { useLocalOnly?: boolean }
   ): Promise<{ analysisText: string; modelUsed: string }> {
     const startTime = Date.now();
     const documentCount = documents.length;
-    
+    const useLocalOnly = options?.useLocalOnly === true;
+
     logger.info('═══════════════════════════════════════════════════════════');
     logger.info('🏥 HEALTHWEAVE ANALYSIS STARTED', {
       documentCount,
       hasContext: !!patientContext,
+      useLocalOnly,
       startTime: new Date(startTime).toISOString(),
     });
     logger.info('═══════════════════════════════════════════════════════════');
 
-    // Build the system prompt and messages (needed for fallbacks)
     const systemPrompt = this.buildSystemPrompt();
     const userMessage = this.buildUserMessage(documents, documentContents, patientContext);
     const messages: BedrockMessage[] = [
@@ -147,6 +150,13 @@ class BedrockService {
     ];
 
     try {
+      if (useLocalOnly) {
+        logger.info('Local-only mode: using Ollama only (no data sent to AWS)');
+        const result = await this.invokeOllama(systemPrompt, messages);
+        this.logAnalysisCompletion(startTime, documentCount, result.modelUsed);
+        return { analysisText: result.analysisText, modelUsed: result.modelUsed };
+      }
+
       // Invoke Bedrock model
       const result = await this.invokeModel(systemPrompt, messages);
       this.logAnalysisCompletion(startTime, documentCount);
@@ -161,8 +171,8 @@ class BedrockService {
           error
         );
       }
-      
-      logger.error('Error analyzing health data', { 
+
+      logger.error('Error analyzing health data', {
         error: error.message || error,
         errorName: error.name,
         errorType: error.__type,

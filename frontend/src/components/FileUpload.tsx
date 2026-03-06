@@ -4,13 +4,14 @@ import { useState, useCallback } from 'react';
 import { useDropzone } from 'react-dropzone';
 
 interface FileUploadProps {
-  onAnalyze: (files: File[], patientContext: string) => Promise<void>;
+  onAnalyze: (files: File[], patientContext: string, localOnly?: boolean) => Promise<void>;
   isAnalyzing: boolean;
 }
 
 export default function FileUpload({ onAnalyze, isAnalyzing }: FileUploadProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [patientContext, setPatientContext] = useState('');
+  const [localOnly, setLocalOnly] = useState(false);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles((prev) => [...prev, ...acceptedFiles]);
@@ -34,7 +35,7 @@ export default function FileUpload({ onAnalyze, isAnalyzing }: FileUploadProps) 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (files.length > 0) {
-      await onAnalyze(files, patientContext);
+      await onAnalyze(files, patientContext, localOnly);
     }
   };
 
@@ -65,6 +66,28 @@ export default function FileUpload({ onAnalyze, isAnalyzing }: FileUploadProps) 
         <p className="mt-1 text-sm text-gray-500">
           Provide any relevant context to help our AI understand your situation better
         </p>
+      </div>
+
+      {/* Local-only / Privacy mode */}
+      <div className="flex items-start">
+        <div className="flex items-center h-5">
+          <input
+            id="localOnly"
+            type="checkbox"
+            checked={localOnly}
+            onChange={(e) => setLocalOnly(e.target.checked)}
+            disabled={isAnalyzing}
+            className="h-4 w-4 rounded border-gray-300 text-primary focus:ring-primary"
+          />
+        </div>
+        <div className="ml-3">
+          <label htmlFor="localOnly" className="text-sm font-medium text-gray-700">
+            Local-only analysis (Privacy mode)
+          </label>
+          <p className="text-sm text-gray-500">
+            Analyze entirely on this device using Ollama. No data is sent to AWS or cloud AI services.
+          </p>
+        </div>
       </div>
 
       {/* File Upload Area */}

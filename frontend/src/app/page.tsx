@@ -12,13 +12,13 @@ export default function Home() {
   const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const handleAnalyze = async (files: File[], patientContext: string) => {
+  const handleAnalyze = async (files: File[], patientContext: string, localOnly?: boolean) => {
     setIsAnalyzing(true);
     setError(null);
     setAnalysisResult(null);
 
     try {
-      const result = await api.analyzeDocuments(files, patientContext);
+      const result = await api.analyzeDocuments(files, patientContext, undefined, localOnly);
 
       if (result.success) {
         setAnalysisResult(result);
