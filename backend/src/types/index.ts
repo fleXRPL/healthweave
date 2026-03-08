@@ -125,6 +125,7 @@ export interface Config {
   dynamodb: {
     reportsTable: string;
     auditTable: string;
+    patientContextTable: string;
   };
   cognito?: {
     userPoolId: string;

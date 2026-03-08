@@ -9,6 +9,7 @@ import {
   getUserReports,
   downloadReportPDF,
 } from './handlers/analysis';
+import { getPatientContext, savePatientContext } from './handlers/patientContext';
 
 const app = express();
 
@@ -94,6 +95,8 @@ app.post('/api/analyze', analyzeDocuments);
 app.get('/api/reports/:reportId', getReport);
 app.get('/api/reports', getUserReports);
 app.get('/api/reports/:reportId/pdf', downloadReportPDF);
+app.get('/api/patient-context', getPatientContext);
+app.post('/api/patient-context', savePatientContext);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
+import apiClient from '@/lib/api';
 
 interface FileUploadProps {
   onAnalyze: (files: File[], patientContext: string, localOnly?: boolean) => Promise<void>;
@@ -12,6 +13,17 @@ export default function FileUpload({ onAnalyze, isAnalyzing }: FileUploadProps) 
   const [files, setFiles] = useState<File[]>([]);
   const [patientContext, setPatientContext] = useState('');
   const [localOnly, setLocalOnly] = useState(false);
+  const [savedContext, setSavedContext] = useState('');
+  const [saveStatus, setSaveStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle');
+
+  useEffect(() => {
+    apiClient.getPatientContext().then((ctx) => {
+      if (ctx) {
+        setPatientContext(ctx);
+        setSavedContext(ctx);
+      }
+    });
+  }, []);
 
   const onDrop = useCallback((acceptedFiles: File[]) => {
     setFiles((prev) => [...prev, ...acceptedFiles]);
@@ -30,6 +42,19 @@ export default function FileUpload({ onAnalyze, isAnalyzing }: FileUploadProps) 
 
   const removeFile = (index: number) => {
     setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
+
+  const handleSaveContext = async () => {
+    setSaveStatus('saving');
+    try {
+      await apiClient.savePatientContext(patientContext);
+      setSavedContext(patientContext);
+      setSaveStatus('saved');
+      setTimeout(() => setSaveStatus('idle'), 2000);
+    } catch {
+      setSaveStatus('error');
+      setTimeout(() => setSaveStatus('idle'), 3000);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -63,6 +88,22 @@ export default function FileUpload({ onAnalyze, isAnalyzing }: FileUploadProps) 
           onChange={(e) => setPatientContext(e.target.value)}
           disabled={isAnalyzing}
         />
+        <div className="mt-2 flex items-center gap-3">
+          <button
+            type="button"
+            onClick={handleSaveContext}
+            disabled={isAnalyzing || saveStatus === 'saving' || patientContext === savedContext}
+            className="text-sm px-3 py-1 rounded border border-primary text-primary hover:bg-blue-50 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          >
+            {saveStatus === 'saving' ? 'Saving...' : 'Save for next time'}
+          </button>
+          {saveStatus === 'saved' && (
+            <span className="text-sm text-green-600">Saved</span>
+          )}
+          {saveStatus === 'error' && (
+            <span className="text-sm text-red-600">Failed to save</span>
+          )}
+        </div>
         <p className="mt-1 text-sm text-gray-500">
           Provide any relevant context to help our AI understand your situation better
         </p>
