@@ -147,6 +147,31 @@ class ApiClient {
   }
 
   /**
+   * Get saved patient context for the current user
+   */
+  async getPatientContext(userId?: string): Promise<string> {
+    try {
+      const response = await this.client.get<{ success: boolean; context: string }>(
+        '/api/patient-context',
+        { params: { userId: userId || 'test-user' } }
+      );
+      return response.data.context ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  /**
+   * Save patient context for the current user
+   */
+  async savePatientContext(context: string, userId?: string): Promise<void> {
+    await this.client.post('/api/patient-context', {
+      userId: userId || 'test-user',
+      context,
+    });
+  }
+
+  /**
    * Health check
    */
   async healthCheck(): Promise<{ status: string; timestamp: string; environment: string }> {

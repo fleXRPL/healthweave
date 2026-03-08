@@ -7,7 +7,7 @@ dotenv.config(); // fallback to .env
 
 const config: Config = {
   env: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '4000', 10),
+  port: Number.parseInt(process.env.PORT || '4000', 10),
   host: process.env.HOST || 'localhost',
   aws: {
     region: process.env.AWS_REGION || 'us-east-1',
@@ -23,6 +23,7 @@ const config: Config = {
   dynamodb: {
     reportsTable: process.env.DYNAMODB_TABLE_REPORTS || 'healthweave-reports',
     auditTable: process.env.DYNAMODB_TABLE_AUDIT || 'healthweave-audit-logs',
+    patientContextTable: process.env.DYNAMODB_TABLE_PATIENT_CONTEXT || 'healthweave-patient-context',
   },
   cognito: process.env.COGNITO_USER_POOL_ID
     ? {

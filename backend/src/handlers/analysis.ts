@@ -5,6 +5,7 @@ import storageService from '../services/storage';
 import bedrockService from '../services/bedrock';
 import reportService from '../services/report';
 import auditService from '../services/audit';
+import patientContextService from '../services/patientContext';
 import logger from '../utils/logger';
 import { AnalysisResult, HealthDocument, KeyValueRow } from '../types';
 
@@ -39,8 +40,11 @@ export const analyzeDocuments = [
   upload.array('documents', 25), // Allow up to 25 files
   async (req: Request, res: Response) => {
     const userId = req.body.userId || 'test-user'; // TODO: Get from JWT
-    const patientContext = req.body.patientContext;
     const localOnly = req.body.localOnly === 'true' || req.body.localOnly === true;
+
+    // Use provided context, or fall back to saved context for this user
+    const patientContext: string | undefined =
+      req.body.patientContext || (await patientContextService.getContext(userId)) || undefined;
 
     logger.info('Starting document analysis', {
       userId,
