@@ -15,7 +15,13 @@ const TABLE_NAME = config.dynamodb.patientContextTable;
 
 const dynamoClient = new DynamoDBClient({
   region: config.aws.region,
-  ...(config.aws.endpoint && { endpoint: config.aws.endpoint }),
+  ...(config.aws.endpoint && {
+    endpoint: config.aws.endpoint,
+    credentials: {
+      accessKeyId: 'test',
+      secretAccessKey: 'test',
+    },
+  }),
 });
 
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
