@@ -29,7 +29,7 @@ jest.mock('../../services/audit', () => ({
 jest.mock('../../services/storage', () => ({
   __esModule: true,
   default: {
-    uploadFile: jest.fn().mockResolvedValue({ key: 'test-key', url: 'http://test' }),
+    uploadFile: jest.fn().mockResolvedValue({ key: 'test-key', url: 'https://test' }),
     extractTextContent: jest.fn().mockResolvedValue('test content'),
   },
 }));
