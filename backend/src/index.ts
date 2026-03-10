@@ -121,32 +121,34 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
   });
 });
 
-// Start server
-const server = app.listen(config.port, config.host, () => {
-  logger.info('HealthWeave backend started', {
-    environment: config.env,
-    host: config.host,
-    port: config.port,
-    awsEndpoint: config.aws.endpoint || 'production AWS',
-    bedrockModel: config.bedrock.modelId,
+// Start server (skip in test environment — supertest binds its own port)
+if (config.env !== 'test') {
+  const server = app.listen(config.port, config.host, () => {
+    logger.info('HealthWeave backend started', {
+      environment: config.env,
+      host: config.host,
+      port: config.port,
+      awsEndpoint: config.aws.endpoint || 'production AWS',
+      bedrockModel: config.bedrock.modelId,
+    });
   });
-});
 
-// Graceful shutdown
-process.on('SIGTERM', () => {
-  logger.info('SIGTERM received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
+  // Graceful shutdown
+  process.on('SIGTERM', () => {
+    logger.info('SIGTERM received, shutting down gracefully');
+    server.close(() => {
+      logger.info('Server closed');
+      process.exit(0);
+    });
   });
-});
 
-process.on('SIGINT', () => {
-  logger.info('SIGINT received, shutting down gracefully');
-  server.close(() => {
-    logger.info('Server closed');
-    process.exit(0);
+  process.on('SIGINT', () => {
+    logger.info('SIGINT received, shutting down gracefully');
+    server.close(() => {
+      logger.info('Server closed');
+      process.exit(0);
+    });
   });
-});
+}
 
 export default app;

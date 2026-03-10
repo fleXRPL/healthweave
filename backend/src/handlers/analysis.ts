@@ -443,7 +443,7 @@ export const downloadReportPDF = async (req: Request, res: Response) => {
 };
 
 // Helper functions to parse AI response
-function extractSection(text: string, ...headers: string[]): string | null {
+export function extractSection(text: string, ...headers: string[]): string | null {
   for (const header of headers) {
     // Try markdown headers first (## Header)
     let regex = new RegExp(`##+\\s+${header}[\\s\\S]*?\\n([\\s\\S]*?)(?=\n##|$)`, 'i');
@@ -472,7 +472,7 @@ function extractSection(text: string, ...headers: string[]): string | null {
   return null;
 }
 
-function extractList(text: string, ...headers: string[]): string[] {
+export function extractList(text: string, ...headers: string[]): string[] {
   const section = extractSection(text, ...headers);
   if (!section) return [];
 
@@ -538,7 +538,7 @@ function extractList(text: string, ...headers: string[]): string[] {
  * Extract key lab/imaging values from "Key Values (Quick Reference)" markdown table.
  * Expects 4 columns: Test | Value | Unit | Reference (header row optional).
  */
-function extractKeyValuesTable(text: string): KeyValueRow[] {
+export function extractKeyValuesTable(text: string): KeyValueRow[] {
   const section = extractSection(text, 'Key Values (Quick Reference)', 'Key Values');
   if (!section) return [];
 
@@ -550,7 +550,7 @@ function extractKeyValuesTable(text: string): KeyValueRow[] {
     const cells = line.split('|').map((c) => c.trim()).filter(Boolean);
     if (cells.length < 2) continue;
     const first = cells[0].toLowerCase();
-    if (first === 'test' || first === 'name' || first === '---') continue; // skip header/separator
+    if (first === 'test' || first === 'name' || /^-+$/.test(first)) continue; // skip header/separator
     rows.push({
       name: cells[0] ?? '',
       value: cells[1] ?? '',
@@ -580,7 +580,7 @@ const SECTION_HEADER_STOPS = new Set([
  * Truncate a list (e.g. keyFindings) at the first item that is a known section header,
  * so we don't show Recommendations or other sections under Key Findings.
  */
-function truncateListAtSectionHeaders(items: string[]): string[] {
+export function truncateListAtSectionHeaders(items: string[]): string[] {
   const index = items.findIndex((item) =>
     SECTION_HEADER_STOPS.has(stripMarkdownLike(item).toLowerCase().trim())
   );
