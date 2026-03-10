@@ -5,7 +5,7 @@ import { AnalyzeResponse } from '@/types';
 import api from '@/lib/api';
 
 interface AnalysisResultsProps {
-  result: AnalyzeResponse;
+  readonly result: AnalyzeResponse;
 }
 
 /**
@@ -40,14 +40,14 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
   const handleDownloadPDF = async () => {
     try {
       const blob = await api.downloadReportPDF(result.reportId);
-      const url = window.URL.createObjectURL(blob);
+      const url = globalThis.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = `healthweave-report-${result.reportId}.pdf`;
       document.body.appendChild(a);
       a.click();
-      window.URL.revokeObjectURL(url);
-      document.body.removeChild(a);
+      globalThis.URL.revokeObjectURL(url);
+      a.remove();
     } catch (error: any) {
       alert('Failed to download PDF: ' + error.message);
     }
@@ -136,10 +136,10 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
         <div className="px-6 py-4">
           {result.keyFindings.length > 0 ? (
             <ul className="space-y-3">
-              {result.keyFindings.map((finding, index) => (
-                <li key={index} className="flex items-start">
+              {result.keyFindings.map((finding, i) => (
+                <li key={`finding-${finding.substring(0, 40)}`} className="flex items-start">
                   <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-blue-100 text-primary font-semibold text-sm mr-3">
-                    {index + 1}
+                    {i + 1}
                   </span>
                   <div className="text-gray-700 flex-1">{renderMarkdown(finding)}</div>
                 </li>
@@ -159,8 +159,8 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
         <div className="px-6 py-4">
           {result.recommendations.length > 0 ? (
             <ul className="space-y-3">
-              {result.recommendations.map((rec, index) => (
-                <li key={index} className="flex items-start">
+              {result.recommendations.map((rec) => (
+                <li key={`rec-${rec.substring(0, 40)}`} className="flex items-start">
                   <svg
                     className="flex-shrink-0 h-6 w-6 text-green-500 mr-3"
                     fill="none"
@@ -192,8 +192,8 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
           </div>
           <div className="px-6 py-4">
             <ul className="space-y-3">
-              {(result.questionsForDoctor ?? []).map((q, index) => (
-                <li key={index} className="flex items-start">
+              {(result.questionsForDoctor ?? []).map((q) => (
+                <li key={`q-${q.substring(0, 40)}`} className="flex items-start">
                   <span className="flex-shrink-0 h-6 w-6 flex items-center justify-center rounded-full bg-amber-100 text-amber-800 font-semibold text-sm mr-3">
                     ?
                   </span>

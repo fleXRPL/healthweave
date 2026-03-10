@@ -3,14 +3,18 @@
 import { useState } from 'react';
 import FileUpload from '@/components/FileUpload';
 import AnalysisResults from '@/components/AnalysisResults';
+import ReportHistory from '@/components/ReportHistory';
 import Logo from '@/components/Logo';
 import api from '@/lib/api';
 import { AnalyzeResponse } from '@/types';
+
+type View = 'upload' | 'results' | 'history';
 
 export default function Home() {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysisResult, setAnalysisResult] = useState<AnalyzeResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [view, setView] = useState<View>('upload');
 
   const handleAnalyze = async (files: File[], patientContext: string, localOnly?: boolean) => {
     setIsAnalyzing(true);
@@ -22,6 +26,7 @@ export default function Home() {
 
       if (result.success) {
         setAnalysisResult(result);
+        setView('results');
       } else {
         setError(result.error || 'Analysis failed');
       }
@@ -35,6 +40,12 @@ export default function Home() {
   const handleReset = () => {
     setAnalysisResult(null);
     setError(null);
+    setView('upload');
+  };
+
+  const handleViewHistoricalReport = (report: AnalyzeResponse) => {
+    setAnalysisResult(report);
+    setView('results');
   };
 
   return (
@@ -50,13 +61,29 @@ export default function Home() {
                 <p className="text-sm text-accent">Synthesizing Your Health Story</p>
               </div>
             </div>
+            <button
+              onClick={() => setView(view === 'history' ? 'upload' : 'history')}
+              className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Past Reports
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        {!analysisResult ? (
+        {view === 'history' && (
+          <ReportHistory
+            onViewReport={handleViewHistoricalReport}
+            onBack={() => setView('upload')}
+          />
+        )}
+
+        {view === 'upload' && (
           <div className="max-w-3xl mx-auto">
             <div className="text-center mb-8">
               <h2 className="text-3xl font-bold text-gray-900 mb-4">
@@ -94,27 +121,28 @@ export default function Home() {
 
             <FileUpload onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
           </div>
-        ) : (
+        )}
+
+        {view === 'results' && analysisResult && (
           <div>
-            <div className="mb-6">
+            <div className="mb-6 flex items-center gap-3">
               <button
                 onClick={handleReset}
                 className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
               >
-                <svg
-                  className="mr-2 h-4 w-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M10 19l-7-7m0 0l7-7m-7 7h18"
-                  />
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
                 </svg>
                 Analyze New Documents
+              </button>
+              <button
+                onClick={() => setView('history')}
+                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+              >
+                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                Past Reports
               </button>
             </div>
             <AnalysisResults result={analysisResult} />
