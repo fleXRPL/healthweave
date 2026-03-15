@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import config from './utils/config';
 import logger from './utils/logger';
+import { getHostInfo } from './utils/capability';
 import {
   analyzeDocuments,
   getReport,
@@ -124,12 +125,26 @@ app.use((err: Error, req: Request, res: Response, _next: NextFunction) => {
 // Start server (skip in test environment — supertest binds its own port)
 if (config.env !== 'test') {
   const server = app.listen(config.port, config.host, () => {
+    const hostInfo = getHostInfo();
     logger.info('HealthWeave backend started', {
       environment: config.env,
       host: config.host,
       port: config.port,
       awsEndpoint: config.aws.endpoint || 'production AWS',
       bedrockModel: config.bedrock.modelId,
+      aiMode: config.aiMode,
+    });
+    logger.info('Local LLM capability', {
+      tier: config.localLLM.tier,
+      ramGB: hostInfo.ramGB,
+      cores: hostInfo.cores,
+      platform: hostInfo.platform,
+      arch: hostInfo.arch,
+      model: config.localLLM.model,
+      numCtx: config.localLLM.numCtx,
+      maxDocs: config.localLLM.maxDocs,
+      maxTotalBytesMB: Math.round(config.localLLM.maxTotalBytes / (1024 * 1024)),
+      ollamaBaseUrl: config.localLLM.ollamaBaseUrl,
     });
   });
 

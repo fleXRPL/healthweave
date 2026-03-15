@@ -1,9 +1,14 @@
 import dotenv from 'dotenv';
-import { Config } from '../types';
+import { Config, type AIMode } from '../types';
+import { getLocalLLMProfile } from './capability';
 
 // Load environment variables
 dotenv.config({ path: `.env.${process.env.NODE_ENV || 'development'}` });
 dotenv.config(); // fallback to .env
+
+const rawAiMode = (process.env.AI_MODE || 'cloud').toLowerCase();
+const aiMode: AIMode =
+  rawAiMode === 'local' || rawAiMode === 'auto' ? rawAiMode : 'cloud';
 
 const config: Config = {
   env: process.env.NODE_ENV || 'development',
@@ -41,6 +46,8 @@ const config: Config = {
   logging: {
     level: process.env.LOG_LEVEL || 'info',
   },
+  aiMode,
+  localLLM: getLocalLLMProfile(),
 };
 
 // Validation
