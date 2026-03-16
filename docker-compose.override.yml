@@ -1,0 +1,33 @@
+# Sidecar pattern: HealthWeave backend in Docker talks to Ollama on the host.
+# Run Ollama on the host first: ollama serve (and optionally ollama pull <model>).
+# Then: docker-compose up
+#
+# The backend uses OLLAMA_BASE_URL=http://host.docker.internal:11434 so inference
+# runs on your Mac's GPU (Metal); the container only sends HTTP to the host.
+
+services:
+  backend:
+    image: node:20-alpine
+    working_dir: /app
+    volumes:
+      - ./backend:/app
+    ports:
+      - "4000:4000"
+    environment:
+      - NODE_ENV=development
+      - PORT=4000
+      - HOST=0.0.0.0
+      - AWS_REGION=us-east-1
+      - AWS_ENDPOINT=http://localstack:4566
+      - S3_BUCKET_NAME=healthweave-patient-data
+      - DYNAMODB_TABLE_REPORTS=healthweave-reports
+      - DYNAMODB_TABLE_AUDIT=healthweave-audit-logs
+      # Point to Ollama on the host (GPU-accelerated)
+      - OLLAMA_BASE_URL=http://host.docker.internal:11434
+      # Optional: uncomment to force all analysis through Ollama
+      # - AI_MODE=local
+    command: sh -c "npm install && npm run dev"
+    depends_on:
+      - localstack
+    networks:
+      - healthweave-network

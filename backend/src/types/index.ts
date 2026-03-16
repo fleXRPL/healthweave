@@ -107,6 +107,20 @@ export interface BedrockResponse {
   };
 }
 
+/** AI mode: cloud (Bedrock + fallbacks), local (Ollama only), or auto. */
+export type AIMode = 'cloud' | 'local' | 'auto';
+
+/** Local LLM profile for capability tier (model, context, limits). */
+export interface LocalLLMProfile {
+  tier: 'low' | 'medium' | 'high';
+  model: string;
+  numCtx: number;
+  maxDocs: number;
+  maxTotalBytes: number;
+  maxConcurrentAnalyses: number;
+  ollamaBaseUrl: string;
+}
+
 export interface Config {
   env: string;
   port: number;
@@ -141,4 +155,8 @@ export interface Config {
   logging: {
     level: string;
   };
+  /** AI mode: cloud | local | auto. When local, only Ollama is used. */
+  aiMode: AIMode;
+  /** Active local-LLM profile (tier, model, limits). Used when aiMode is local or for local-only requests. */
+  localLLM: LocalLLMProfile;
 }

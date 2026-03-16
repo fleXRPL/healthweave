@@ -6,6 +6,7 @@ import bedrockService from '../services/bedrock';
 import reportService from '../services/report';
 import auditService from '../services/audit';
 import patientContextService from '../services/patientContext';
+import config from '../utils/config';
 import logger from '../utils/logger';
 import { AnalysisResult, HealthDocument, KeyValueRow } from '../types';
 
@@ -78,6 +79,31 @@ export const analyzeDocuments = [
       }
 
       const files = req.files as Express.Multer.File[];
+
+      // Local-only resource guard: enforce profile limits when using local LLM
+      const useLocalLLM = localOnly || config.aiMode === 'local';
+      if (useLocalLLM) {
+        const profile = config.localLLM;
+        const totalBytes = files.reduce((sum, f) => sum + f.size, 0);
+        if (files.length > profile.maxDocs || totalBytes > profile.maxTotalBytes) {
+          const maxDocsMsg =
+            files.length > profile.maxDocs
+              ? `You can only upload ${profile.maxDocs} documents at a time for local-only analysis. `
+              : '';
+          const maxSizeMsg =
+            totalBytes > profile.maxTotalBytes
+              ? `Total size must be under ${Math.round(profile.maxTotalBytes / (1024 * 1024))}MB. `
+              : '';
+          return res.status(400).json({
+            success: false,
+            error:
+              maxDocsMsg +
+              maxSizeMsg +
+              'Use fewer or smaller files, or switch to cloud analysis.',
+          });
+        }
+      }
+
       const uploadedDocs: HealthDocument[] = [];
       const documentContents = new Map<string, string>();
 
@@ -272,12 +298,14 @@ export const analyzeDocuments = [
     } catch (error: any) {
       const errorMessage = error?.message || String(error) || 'Unknown error';
       const errorStack = error?.stack;
-      
-      logger.error('Error during document analysis', { 
+      const statusCode = error?.statusCode;
+
+      logger.error('Error during document analysis', {
         error: errorMessage,
         errorStack,
         errorName: error?.name,
-        userId 
+        userId,
+        statusCode,
       });
 
       await auditService.logEvent(
@@ -288,6 +316,13 @@ export const analyzeDocuments = [
         { error: errorMessage },
         req
       );
+
+      if (statusCode === 429) {
+        return res.status(429).json({
+          success: false,
+          error: errorMessage,
+        });
+      }
 
       return res.status(500).json({
         success: false,

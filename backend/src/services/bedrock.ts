@@ -8,6 +8,9 @@ import config from '../utils/config';
 import logger from '../utils/logger';
 import { BedrockMessage, HealthDocument } from '../types';
 
+/** In-flight local-only analyses; guarded by profile.maxConcurrentAnalyses. */
+let localAnalysisCount = 0;
+
 class BedrockService {
   private readonly client: BedrockRuntimeClient;
   private readonly anthropicClient: Anthropic | null = null;
@@ -129,7 +132,8 @@ class BedrockService {
   ): Promise<{ analysisText: string; modelUsed: string }> {
     const startTime = Date.now();
     const documentCount = documents.length;
-    const useLocalOnly = options?.useLocalOnly === true;
+    const useLocalOnly =
+      options?.useLocalOnly === true || config.aiMode === 'local';
 
     logger.info('═══════════════════════════════════════════════════════════');
     logger.info('🏥 HEALTHWEAVE ANALYSIS STARTED', {
@@ -151,10 +155,23 @@ class BedrockService {
 
     try {
       if (useLocalOnly) {
-        logger.info('Local-only mode: using Ollama only (no data sent to AWS)');
-        const result = await this.invokeOllama(systemPrompt, messages);
-        this.logAnalysisCompletion(startTime, documentCount, result.modelUsed);
-        return { analysisText: result.analysisText, modelUsed: result.modelUsed };
+        const profile = config.localLLM;
+        if (localAnalysisCount >= profile.maxConcurrentAnalyses) {
+          const err = new Error(
+            'Another local-only analysis is running. Please wait or try again.'
+          ) as Error & { statusCode?: number };
+          err.statusCode = 429;
+          throw err;
+        }
+        localAnalysisCount += 1;
+        try {
+          logger.info('Local-only mode: using Ollama only (no data sent to AWS)');
+          const result = await this.invokeOllama(systemPrompt, messages);
+          this.logAnalysisCompletion(startTime, documentCount, result.modelUsed);
+          return { analysisText: result.analysisText, modelUsed: result.modelUsed };
+        } finally {
+          localAnalysisCount -= 1;
+        }
       }
 
       // Invoke Bedrock model
@@ -274,86 +291,75 @@ class BedrockService {
   }
 
   /**
-   * Invoke Ollama (free local LLM) as fallback
+   * Invoke Ollama (free local LLM). Uses config.localLLM for model, context, and URL.
    */
   private async invokeOllama(systemPrompt: string, messages: BedrockMessage[]): Promise<{ analysisText: string; modelUsed: string }> {
+    const profile = config.localLLM;
     const userMessage = messages[0]?.content?.map((c: any) => c.text || c).join('\n') || '';
-    
+
     // Estimate token count (rough: ~4 chars per token)
     const systemTokens = Math.ceil(systemPrompt.length / 4);
     const userTokens = Math.ceil(userMessage.length / 4);
     const totalTokens = systemTokens + userTokens;
-    
-    logger.info('Invoking Ollama local LLM', {
-      systemPromptLength: systemPrompt.length,
-      userMessageLength: userMessage.length,
-      estimatedSystemTokens: systemTokens,
-      estimatedUserTokens: userTokens,
-      estimatedTotalTokens: totalTokens,
-    });
 
-    // Warn if input is very large
-    if (totalTokens > 30000) {
-      logger.warn('Input may exceed model context window', { 
-        estimatedTotalTokens: totalTokens,
-        recommendation: 'Consider reducing document count or using Claude for production'
-      });
+    // Context guard: reject if input would exceed profile context
+    const maxInputTokens = Math.floor(profile.numCtx * 0.8);
+    if (totalTokens > maxInputTokens) {
+      throw new Error(
+        'The combined content is too large for the local model context. ' +
+          `Try fewer or shorter documents (limit ~${Math.round(maxInputTokens / 1000)}k tokens), or switch to cloud mode.`
+      );
     }
 
-    try {
-      // Create abort controller with 10 minute timeout for large document sets
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 minutes
-      
-      logger.info('Starting Ollama request (10 min timeout)', { 
-        documentTokens: userTokens,
-        model: 'mistral:latest' 
-      });
+    logger.info('Invoking Ollama local LLM', {
+      model: profile.model,
+      numCtx: profile.numCtx,
+      estimatedTotalTokens: totalTokens,
+      systemPromptLength: systemPrompt.length,
+      userMessageLength: userMessage.length,
+    });
 
-      // Use chat API which handles system prompts better
-      const response = await fetch('http://localhost:11434/api/chat', {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 600000); // 10 min
+
+      const response = await fetch(`${profile.ollamaBaseUrl}/api/chat`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         signal: controller.signal,
         body: JSON.stringify({
-          //model: 'llama3.2', // 2GB - very fast but may not follow complex prompts
-          model: 'mistral:latest', // 4.4GB - RECOMMENDED for M1 Max, good balance
-          //model: 'ministral-3',
-          //model: 'gemma2:27b', // 15GB - good but slower
-          //model: 'qwen2.5:14b', // echoes structure, weak analysis
-          //model: 'medllama2:latest', // medical Q&A focused
-          //model: 'meditron:latest', // echoes prompt structure, doesn't follow instructions
-          //model: 'qwen2.5:32b', // uses 30GB - too much RAM pressure on 32GB system
-          //model: 'llama3.1:70b', // crashes system - too large for 32GB RAM
+          model: profile.model,
           messages: [
             { role: 'system', content: systemPrompt },
             { role: 'user', content: userMessage },
           ],
           stream: false,
           options: {
-            temperature: 0.3,  // Lower = more consistent/deterministic output
+            temperature: 0.3,
             top_p: 0.9,
-            num_ctx: 32768,  // 32K context - needed to see all 14+ documents!
+            num_ctx: profile.numCtx,
           },
         }),
       });
-      
-      clearTimeout(timeoutId); // Clear timeout if request completes
+
+      clearTimeout(timeoutId);
 
       if (!response.ok) {
         if (response.status === 0 || response.status === 500) {
-          throw new Error('Ollama is not running. Install from https://ollama.ai and run: ollama pull llama3.2');
+          throw new Error(
+            'Ollama is not running. Install from https://ollama.ai and run: ollama serve'
+          );
         }
         throw new Error(`Ollama API error: ${response.statusText}`);
       }
 
-      const data = await response.json() as {
+      const data = (await response.json()) as {
         message?: { content?: string };
         response?: string;
         text?: string;
         model?: string;
       };
-      
+
       const text = data.message?.content || data.response || data.text || '';
 
       if (!text) {
@@ -361,12 +367,12 @@ class BedrockService {
         throw new Error('No content in Ollama response');
       }
 
-      logger.info('Ollama response received successfully', { 
+      logger.info('Ollama response received successfully', {
         contentLength: text.length,
         model: data.model,
-        preview: text.substring(0, 200)
+        preview: text.substring(0, 200),
       });
-      return { analysisText: text, modelUsed: data.model || 'mistral:latest' };
+      return { analysisText: text, modelUsed: data.model || profile.model };
     } catch (error: any) {
       logger.error('Ollama request failed', { 
         errorName: error.name,
