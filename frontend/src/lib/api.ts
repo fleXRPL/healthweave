@@ -2,7 +2,7 @@ import axios, { AxiosInstance } from 'axios';
 import { AnalyzeResponse, ReportResponse, ReportsListResponse } from '@/types';
 
 class ApiClient {
-  private client: AxiosInstance;
+  private readonly client: AxiosInstance;
 
   constructor() {
     this.client = axios.create({
@@ -116,6 +116,23 @@ class ApiClient {
   }
 
   /**
+   * Delete a report
+   */
+  async deleteReport(reportId: string, userId?: string): Promise<void> {
+    try {
+      await this.client.delete(`/api/reports/${reportId}`, {
+        params: { userId: userId || 'test-user' },
+      });
+    } catch (error: any) {
+      throw new Error(
+        error.response?.data?.error ||
+          error.response?.data?.message ||
+          'Failed to delete report'
+      );
+    }
+  }
+
+  /**
    * Download report as PDF
    */
   async downloadReportPDF(reportId: string, userId?: string): Promise<Blob> {
@@ -179,7 +196,8 @@ class ApiClient {
       const response = await this.client.get('/health');
       return response.data;
     } catch (error: any) {
-      throw new Error('Backend is not reachable');
+      console.error('Health check failed', error);
+      throw new Error(error?.message || 'Backend is not reachable');
     }
   }
 }
