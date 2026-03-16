@@ -414,6 +414,42 @@ export const getUserReports = async (req: Request, res: Response) => {
 };
 
 /**
+ * Delete a report (user must own it)
+ */
+export const deleteReport = async (req: Request, res: Response) => {
+  const { reportId } = req.params;
+  const userId = (req.query.userId as string) || req.body?.userId || 'test-user'; // TODO: Get from JWT
+
+  logger.info('Deleting report', { reportId, userId });
+
+  try {
+    const report = await reportService.getReport(reportId, userId);
+    if (!report) {
+      return res.status(404).json({
+        success: false,
+        error: 'Report not found',
+      });
+    }
+
+    await reportService.deleteReport(reportId, userId);
+    await auditService.logEvent(userId, 'REPORT_DELETE', `report:${reportId}`, true, {}, req);
+
+    return res.status(204).send();
+  } catch (error: any) {
+    logger.error('Error deleting report', {
+      error: error?.message || String(error),
+      reportId,
+      userId,
+    });
+    return res.status(500).json({
+      success: false,
+      error: 'Failed to delete report',
+      message: error?.message || 'Unknown error',
+    });
+  }
+};
+
+/**
  * Download report as PDF
  */
 export const downloadReportPDF = async (req: Request, res: Response) => {

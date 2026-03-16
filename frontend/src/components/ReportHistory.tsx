@@ -32,12 +32,19 @@ export default function ReportHistory({ onViewReport, onBack }: ReportHistoryPro
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<string | null>(null);
 
-  useEffect(() => {
-    api.getUserReports()
+  const fetchReports = () => {
+    setLoading(true);
+    api
+      .getUserReports()
       .then((res) => setReports(res.reports ?? []))
       .catch(() => setError('Failed to load report history'))
       .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    fetchReports();
   }, []);
 
   const handleDownload = async (reportId: string) => {
@@ -56,6 +63,20 @@ export default function ReportHistory({ onViewReport, onBack }: ReportHistoryPro
       alert('Failed to download PDF: ' + err.message);
     } finally {
       setDownloading(null);
+    }
+  };
+
+  const handleDelete = async (reportId: string) => {
+    if (!confirm('Delete this report? This cannot be undone.')) return;
+    setDeleting(reportId);
+    setError(null);
+    try {
+      await api.deleteReport(reportId);
+      setReports((prev) => prev.filter((r) => r.id !== reportId));
+    } catch (err: any) {
+      setError(err.message || 'Failed to delete report');
+    } finally {
+      setDeleting(null);
     }
   };
 
@@ -159,6 +180,14 @@ export default function ReportHistory({ onViewReport, onBack }: ReportHistoryPro
                     className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-primary border border-primary hover:bg-blue-50 disabled:opacity-40 transition-colors"
                   >
                     {downloading === report.id ? 'Saving...' : 'PDF'}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDelete(report.id)}
+                    disabled={deleting === report.id}
+                    className="inline-flex items-center px-3 py-1.5 text-sm font-medium rounded-md text-red-600 border border-red-300 hover:bg-red-50 disabled:opacity-40 transition-colors"
+                  >
+                    {deleting === report.id ? 'Deleting...' : 'Delete'}
                   </button>
                 </div>
               </div>

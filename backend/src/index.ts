@@ -9,6 +9,7 @@ import {
   getReport,
   getUserReports,
   downloadReportPDF,
+  deleteReport,
 } from './handlers/analysis';
 import { getPatientContext, savePatientContext } from './handlers/patientContext';
 
@@ -95,6 +96,7 @@ app.get('/health', (_req: Request, res: Response) => {
 app.post('/api/analyze', analyzeDocuments);
 app.get('/api/reports/:reportId', getReport);
 app.get('/api/reports', getUserReports);
+app.delete('/api/reports/:reportId', deleteReport);
 app.get('/api/reports/:reportId/pdf', downloadReportPDF);
 app.get('/api/patient-context', getPatientContext);
 app.post('/api/patient-context', savePatientContext);

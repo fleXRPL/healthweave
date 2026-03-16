@@ -5,6 +5,7 @@ import {
 } from '@aws-sdk/client-dynamodb';
 import {
   DynamoDBDocumentClient,
+  DeleteCommand,
   PutCommand,
   QueryCommand,
   ScanCommand,
@@ -998,6 +999,35 @@ class ReportService {
     } catch (error) {
       logger.error('Error retrieving user reports', { error, userId });
       throw new Error('Failed to retrieve user reports');
+    }
+  }
+
+  /**
+   * Delete a report by ID for a user (ensures ownership via getReport)
+   */
+  async deleteReport(reportId: string, userId: string): Promise<void> {
+    await this.ensureTable();
+    logger.info('Deleting report', { reportId, userId });
+
+    const report = await this.getReport(reportId, userId);
+    if (!report) {
+      logger.warn('Report not found for delete', { reportId, userId });
+      return; // idempotent: no-op if not found
+    }
+
+    try {
+      const command = new DeleteCommand({
+        TableName: this.tableName,
+        Key: {
+          id: report.id,
+          createdAt: report.createdAt.getTime(),
+        },
+      });
+      await this.client.send(command);
+      logger.info('Report deleted successfully', { reportId, userId });
+    } catch (error: any) {
+      logger.error('Error deleting report', { error: error?.message, reportId, userId });
+      throw new Error('Failed to delete report');
     }
   }
 

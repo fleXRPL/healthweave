@@ -54,5 +54,5 @@ Add host-aware capability detection, tiered local-LLM profiles, resource guardra
 ## References
 
 - Local-only / privacy mode: #71
-- HealthWeave Production Readiness project: https://github.com/orgs/fleXRPL/projects/6
+- HealthWeave Production Readiness project: [https://github.com/orgs/fleXRPL/projects/6](https://github.com/orgs/fleXRPL/projects/6)
 - Discussion: host detection, resource guardrails, sidecar Ollama, capability tiers
