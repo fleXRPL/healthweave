@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { AlertTriangle, Clock, ArrowLeft } from 'lucide-react';
 import FileUpload from '@/components/FileUpload';
 import AnalysisResults from '@/components/AnalysisResults';
 import ReportHistory from '@/components/ReportHistory';
@@ -21,10 +22,8 @@ export default function Home() {
     setIsAnalyzing(true);
     setError(null);
     setAnalysisResult(null);
-
     try {
       const result = await api.analyzeDocuments(files, patientContext, undefined, localOnly);
-
       if (result.success) {
         setAnalysisResult(result);
         setView('results');
@@ -38,100 +37,268 @@ export default function Home() {
     }
   };
 
-  const handleReset = () => {
-    setAnalysisResult(null);
-    setError(null);
-    setView('upload');
-  };
-
-  const handleViewHistoricalReport = (report: AnalyzeResponse) => {
-    setAnalysisResult(report);
-    setView('results');
-  };
+  const handleReset = () => { setAnalysisResult(null); setError(null); setView('upload'); };
+  const handleViewHistoricalReport = (report: AnalyzeResponse) => { setAnalysisResult(report); setView('results'); };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-50 to-blue-50">
+    <div className="min-h-screen bg-mesh flex flex-col">
       <Header
         pastReportsAsToggle
         onPastReportsClick={() => setView((v) => (v === 'history' ? 'upload' : 'history'))}
       />
 
-      {/* Main Content */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+      <main
+        style={{
+          flex: 1,
+          maxWidth: '72rem',
+          margin: '0 auto',
+          width: '100%',
+          padding: '2.5rem 1.5rem',
+        }}
+      >
+
+        {/* ── History ───────────────────────────────────────────────── */}
         {view === 'history' && (
-          <ReportHistory
-            onViewReport={handleViewHistoricalReport}
-            onBack={() => setView('upload')}
-          />
+          <div className="animate-fade-in-up">
+            <ReportHistory onViewReport={handleViewHistoricalReport} onBack={() => setView('upload')} />
+          </div>
         )}
 
+        {/* ── Upload ────────────────────────────────────────────────── */}
         {view === 'upload' && (
-          <div className="max-w-3xl mx-auto">
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-gray-900 mb-4">
+          <div className="animate-fade-in-up" style={{ maxWidth: '48rem', margin: '0 auto' }}>
+
+            {/* Hero — gradient blobs behind (Magic Patterns pattern) */}
+            <div style={{ textAlign: 'center', marginBottom: '2.5rem', position: 'relative' }}>
+              {/* Background gradient blobs */}
+              <div
+                aria-hidden
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  zIndex: -1,
+                  overflow: 'hidden',
+                  pointerEvents: 'none',
+                  display: 'flex',
+                  justifyContent: 'center',
+                }}
+              >
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    width: 600,
+                    height: 350,
+                    background: 'rgba(70,147,195,0.12)',
+                    borderRadius: '50%',
+                    filter: 'blur(90px)',
+                    mixBlendMode: 'multiply',
+                  }}
+                />
+                <div
+                  style={{
+                    position: 'absolute',
+                    top: -60,
+                    width: 480,
+                    height: 480,
+                    background: 'rgba(28,70,106,0.06)',
+                    borderRadius: '50%',
+                    filter: 'blur(110px)',
+                    mixBlendMode: 'multiply',
+                  }}
+                />
+              </div>
+
+              {/* Pulsing pill badge */}
+              <div
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  padding: '0.4rem 1rem',
+                  borderRadius: '9999px',
+                  background: 'rgba(255,255,255,0.65)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(70,147,195,0.22)',
+                  color: 'var(--hw-navy-dark)',
+                  fontSize: '0.75rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
+                  boxShadow: '0 1px 6px rgba(0,0,0,0.06)',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <span style={{ position: 'relative', display: 'inline-flex' }}>
+                  {/* Ping ring */}
+                  <span
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: '9999px',
+                      background: 'var(--hw-teal)',
+                      opacity: 0.6,
+                      animation: 'ping 2s cubic-bezier(0,0,0.2,1) infinite',
+                    }}
+                  />
+                  <span
+                    style={{
+                      width: '0.5rem',
+                      height: '0.5rem',
+                      borderRadius: '9999px',
+                      background: 'var(--hw-teal)',
+                      display: 'block',
+                    }}
+                  />
+                </span>
+                AI-Powered Health Analysis
+              </div>
+
+              <h1
+                style={{
+                  fontSize: 'clamp(2rem, 5vw, 2.75rem)',
+                  fontWeight: 800,
+                  color: 'var(--hw-navy-dark)',
+                  letterSpacing: '-0.03em',
+                  lineHeight: 1.15,
+                  marginBottom: '0.85rem',
+                }}
+              >
                 Upload Your Health Documents
-              </h2>
-              <p className="text-lg text-gray-600">
-                Our AI will analyze your medical records, lab results, and clinical notes to
-                generate comprehensive insights and actionable recommendations.
+              </h1>
+              <p style={{ fontSize: '1.05rem', color: '#4b6080', maxWidth: '36rem', margin: '0 auto' }}>
+                Our AI synthesizes your medical records, lab results, and clinical notes into
+                clear, citation-backed insights.
               </p>
             </div>
-            <p className="text-center text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-6">
-              For informational use only. Not a substitute for professional medical advice.
-            </p>
 
+            {/* Amber disclaimer */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '0.625rem',
+                padding: '0.85rem 1rem',
+                borderRadius: '0.75rem',
+                background: 'rgba(255,251,235,0.85)',
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(180,133,9,0.25)',
+                marginBottom: '1.5rem',
+              }}
+            >
+              <AlertTriangle size={16} style={{ color: '#b45309', flexShrink: 0, marginTop: 2 }} />
+              <div style={{ fontSize: '0.8rem', color: '#92600a' }}>
+                <strong>For informational use only.</strong> HealthWeave does not provide medical
+                advice, diagnosis, or treatment. Always consult a qualified healthcare provider.
+              </div>
+            </div>
+
+            {/* Error banner */}
             {error && (
-              <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
-                <div className="flex">
-                  <div className="flex-shrink-0">
-                    <svg
-                      className="h-5 w-5 text-red-400"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
-                  </div>
-                  <div className="ml-3">
-                    <h3 className="text-sm font-medium text-red-800">Analysis Error</h3>
-                    <p className="mt-1 text-sm text-red-700">{error}</p>
-                  </div>
+              <div
+                className="animate-fade-in-up"
+                style={{
+                  display: 'flex',
+                  gap: '0.625rem',
+                  padding: '0.85rem 1rem',
+                  borderRadius: '0.75rem',
+                  background: 'rgba(220,38,38,0.06)',
+                  border: '1px solid rgba(220,38,38,0.25)',
+                  marginBottom: '1.25rem',
+                }}
+              >
+                <AlertTriangle size={15} style={{ color: '#b91c1c', flexShrink: 0, marginTop: 2 }} />
+                <div style={{ fontSize: '0.8rem', color: '#b91c1c' }}>
+                  <strong>Analysis failed</strong>
+                  <div style={{ opacity: 0.85, marginTop: 2 }}>{error}</div>
                 </div>
               </div>
             )}
 
-            <FileUpload onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
+            {/* Glass upload card */}
+            <div className="glass-card" style={{ padding: '1.75rem' }}>
+              <FileUpload onAnalyze={handleAnalyze} isAnalyzing={isAnalyzing} />
+            </div>
+
+            {/* Feature chips */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                justifyContent: 'center',
+                gap: '0.75rem',
+                marginTop: '1.75rem',
+              }}
+            >
+              {[
+                { icon: '🔬', label: 'Citation-backed findings' },
+                { icon: '🛡️', label: 'HIPAA-conscious design' },
+                { icon: '📄', label: 'PDF export' },
+              ].map(({ icon, label }) => (
+                <span
+                  key={label}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem',
+                    padding: '0.45rem 1rem',
+                    borderRadius: '9999px',
+                    background: 'rgba(255,255,255,0.65)',
+                    backdropFilter: 'blur(8px)',
+                    border: '1px solid var(--border)',
+                    fontSize: '0.78rem',
+                    fontWeight: 500,
+                    color: '#4b6080',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.05)',
+                  }}
+                >
+                  {icon} {label}
+                </span>
+              ))}
+            </div>
           </div>
         )}
 
+        {/* ── Results ───────────────────────────────────────────────── */}
         {view === 'results' && analysisResult && (
-          <div>
-            <p className="text-sm text-amber-800 bg-amber-50 border border-amber-200 rounded-lg px-4 py-2 mb-4">
-              For informational use only. Not a substitute for professional medical advice.
-            </p>
-            <div className="mb-6 flex items-center gap-3">
-              <button
-                onClick={handleReset}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+          <div className="animate-fade-in-up">
+            {/* Action bar */}
+            <div
+              style={{
+                display: 'flex',
+                flexWrap: 'wrap',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '0.75rem',
+                background: 'var(--surface-0)',
+                border: '1px solid var(--border)',
+                borderRadius: '0.875rem',
+                padding: '0.75rem 1rem',
+                marginBottom: '1.5rem',
+                boxShadow: '0 1px 8px rgba(0,0,0,0.05)',
+              }}
+            >
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  fontSize: '0.78rem',
+                  fontWeight: 500,
+                  color: '#92600a',
+                  background: 'rgba(180,133,9,0.08)',
+                  border: '1px solid rgba(180,133,9,0.2)',
+                  padding: '0.35rem 0.75rem',
+                  borderRadius: '0.5rem',
+                }}
               >
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-                </svg>
-                Analyze New Documents
-              </button>
-              <button
-                onClick={() => setView('history')}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
-              >
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Past Reports
-              </button>
+                <AlertTriangle size={13} />
+                AI-generated summary. Verify with your doctor.
+              </div>
+              <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <OutlineBtn onClick={() => setView('history')}><Clock size={14} /> Past Reports</OutlineBtn>
+                <OutlineBtn onClick={handleReset}><ArrowLeft size={14} /> New Analysis</OutlineBtn>
+              </div>
             </div>
             <AnalysisResults result={analysisResult} />
           </div>
@@ -140,5 +307,31 @@ export default function Home() {
 
       <Footer />
     </div>
+  );
+}
+
+function OutlineBtn({ onClick, children }: { onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      style={{
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: '0.375rem',
+        padding: '0.45rem 0.9rem',
+        borderRadius: '0.6rem',
+        fontSize: '0.8rem',
+        fontWeight: 500,
+        background: 'var(--surface-0)',
+        border: '1px solid var(--border)',
+        color: '#374151',
+        cursor: 'pointer',
+        transition: 'all 0.15s',
+        boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+      }}
+    >
+      {children}
+    </button>
   );
 }

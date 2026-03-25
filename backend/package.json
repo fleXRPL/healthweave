@@ -37,7 +37,8 @@
     "pdfjs-dist": "^5.4.530",
     "pdfkit": "^0.17.2",
     "uuid": "^13.0.0",
-    "winston": "^3.19.0"
+    "winston": "^3.19.0",
+    "zod": "^4.3.6"
   },
   "devDependencies": {
     "@types/cors": "^2.8.17",

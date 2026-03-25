@@ -238,7 +238,7 @@ export const analyzeDocuments = [
         summary: enhancedSummary,
         keyFindings: finalKeyFindings.length > 0 ? finalKeyFindings : ['Analysis completed. Review full report for details.'],
         recommendations: finalRecommendations.length > 0 ? finalRecommendations : ['Review the full analysis report with your healthcare provider.'],
-        citations: [], // TODO: Extract citations from analysis
+        citations: extractCitations(analysisText),
         fullReport: analysisText,
         documentNames: uploadedDocs.map((d) => d.fileName),
         modelUsed,
@@ -661,4 +661,105 @@ export function truncateListAtSectionHeaders(items: string[]): string[] {
 
 function stripMarkdownLike(s: string): string {
   return s.replaceAll(/\*\*([^*]+)\*\*/g, '$1').trim();
+}
+
+/**
+ * Clinical guideline source keywords for type detection.
+ * Matches organization acronyms commonly used in medical literature.
+ */
+const GUIDELINE_KEYWORDS = [
+  'AHA', 'ACC', 'ACMG', 'NCCN', 'CPIC', 'ESC', 'USPSTF', 'ASH', 'ASCO',
+  'ACS', 'ADA', 'AASLD', 'IDSA', 'AACE', 'NICE', 'WHO', 'CDC', 'AAN',
+  'guideline', 'guidelines', 'recommendation', 'consensus', 'statement',
+  'PharmGKB', 'CPIC', 'ClinGen',
+];
+
+const RESEARCH_KEYWORDS = [
+  'PMID', 'PubMed', 'doi:', 'DOI:', 'J.', 'Journal', 'et al', 'et al.',
+  'N Engl J Med', 'Lancet', 'JAMA', 'BMJ', 'Nat ', 'Cell', 'Blood',
+  'Clin', 'Am J', 'Int J',
+];
+
+/**
+ * Determine Citation type from the citation text.
+ */
+function classifyCitationType(text: string): 'document' | 'research' | 'clinical_guideline' {
+  const upperText = text.toUpperCase();
+  for (const kw of GUIDELINE_KEYWORDS) {
+    if (upperText.includes(kw.toUpperCase())) return 'clinical_guideline';
+  }
+  for (const kw of RESEARCH_KEYWORDS) {
+    if (text.includes(kw)) return 'research';
+  }
+  return 'document';
+}
+
+/**
+ * Extract a short relevance description from the citation text.
+ * Returns the citation source identifier (e.g. PMID, ClinVar ID) or first 80 chars.
+ */
+function extractRelevance(text: string): string {
+  // Try to extract PMID
+  const pmidMatch = text.match(/PMID[:\s]+(\d+)/i);
+  if (pmidMatch) return `PubMed ID: ${pmidMatch[1]}`;
+
+  // Try DOI
+  const doiMatch = text.match(/doi[:\s]+(10\.\S+)/i);
+  if (doiMatch) return `DOI: ${doiMatch[1]}`;
+
+  // Try ClinVar
+  const clinvarMatch = text.match(/ClinVar[:\s#]+(\S+)/i);
+  if (clinvarMatch) return `ClinVar: ${clinvarMatch[1]}`;
+
+  // Try ClinVar variant ID
+  const varMatch = text.match(/(?:variant|VCV|RCV)[:\s]+(\S+)/i);
+  if (varMatch) return `Variant: ${varMatch[1]}`;
+
+  // Fallback: first 80 chars trimmed
+  return text.substring(0, 80).trim() + (text.length > 80 ? '…' : '');
+}
+
+/**
+ * Parse the ## References section from LLM markdown output into Citation objects.
+ * Handles numbered lists (1. ...) and bulleted lists (- ...).
+ * Returns an empty array if no References section is found.
+ */
+export function extractCitations(text: string): import('../types').Citation[] {
+  const section = extractSection(text, 'References', 'Reference');
+  if (!section) return [];
+
+  const lines = section
+    .split('\n')
+    .map((l) => l.trim())
+    .filter((l) => l.length > 0);
+
+  const citations: import('../types').Citation[] = [];
+
+  for (const line of lines) {
+    // Skip separator lines and bare section headings
+    if (/^[-=]{3,}$/.test(line)) continue;
+    if (/^#{1,6}\s/.test(line)) continue;
+
+    // Strip leading numbering (1. 2.) or bullet (- *)
+    const cleaned = line
+      .replace(/^\d+\.\s+/, '')
+      .replace(/^[-*•]\s+/, '')
+      .trim();
+
+    if (cleaned.length < 5) continue;
+
+    // Strip markdown bold/italic wrappers
+    const source = cleaned
+      .replaceAll(/\*\*([^*]+)\*\*/g, '$1')
+      .replaceAll(/\*([^*]+)\*/g, '$1')
+      .trim();
+
+    citations.push({
+      source,
+      type: classifyCitationType(source),
+      relevance: extractRelevance(source),
+    });
+  }
+
+  return citations;
 }

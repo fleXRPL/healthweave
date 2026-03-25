@@ -1,62 +1,151 @@
 'use client';
 
 import Link from 'next/link';
-import Logo from '@/components/Logo';
-
-const navButtonClass =
-  'inline-flex items-center px-4 py-2 border border-gray-300 rounded-md shadow-sm text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary';
+import { Dna, Plus, Clock, Info } from 'lucide-react';
 
 interface HeaderProps {
-  /** When true, Past Reports is a toggle button; when false, it links to home */
-  readonly pastReportsAsToggle?: boolean;
-  readonly onPastReportsClick?: () => void;
+  pastReportsAsToggle?: boolean;
+  onPastReportsClick?: () => void;
 }
 
 export default function Header({ pastReportsAsToggle, onPastReportsClick }: HeaderProps) {
   return (
-    <header className="bg-white shadow-sm">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-        <div className="flex items-center justify-between flex-wrap gap-4">
-          <Link
-            href="/"
-            className="flex items-center space-x-4 text-left hover:opacity-90 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary rounded-lg"
-            aria-label="Home"
-            title="Home"
+    <header
+      style={{
+        position: 'sticky',
+        top: 0,
+        zIndex: 50,
+        background: 'rgba(255,255,255,0.82)',
+        backdropFilter: 'blur(20px)',
+        WebkitBackdropFilter: 'blur(20px)',
+        borderBottom: '1px solid rgba(212,225,239,0.7)',
+        boxShadow: '0 1px 20px rgba(41,98,139,0.07)',
+      }}
+    >
+      <div
+        style={{
+          maxWidth: '72rem',
+          margin: '0 auto',
+          padding: '0 1.5rem',
+          height: '4rem',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '1rem',
+        }}
+      >
+        {/* ── Brand ──────────────────────────────────────────────────── */}
+        <Link
+          href="/"
+          style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', textDecoration: 'none' }}
+          aria-label="HealthWeave – Home"
+        >
+          {/* Gradient DNA icon — from Magic Patterns design */}
+          <div
+            style={{
+              background: 'linear-gradient(135deg, var(--hw-navy-dark) 0%, var(--hw-teal) 100%)',
+              padding: '0.4rem',
+              borderRadius: '0.6rem',
+              boxShadow: '0 2px 8px rgba(41,98,139,0.3)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              transition: 'box-shadow 0.2s',
+            }}
           >
-            <Logo size="md" />
-            <div>
-              <h1 className="text-2xl font-bold text-primary">HealthWeave</h1>
-              <p className="text-sm text-accent">Synthesizing Your Health Story</p>
-            </div>
-          </Link>
-          <nav className="flex items-center gap-3 flex-wrap" aria-label="Main navigation">
-            <Link href="/" className={navButtonClass}>
-              <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-              </svg>
-              New Analysis
-            </Link>
-            {pastReportsAsToggle && typeof onPastReportsClick === 'function' ? (
-              <button type="button" onClick={onPastReportsClick} className={navButtonClass}>
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Past Reports
-              </button>
-            ) : (
-              <Link href="/" className={navButtonClass}>
-                <svg className="mr-2 h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Past Reports
-              </Link>
-            )}
-            <Link href="/about" className={navButtonClass}>
-              About
-            </Link>
-          </nav>
-        </div>
+            <Dna size={20} color="white" />
+          </div>
+
+          <div style={{ display: 'flex', flexDirection: 'column' }}>
+            <span
+              style={{
+                fontFamily: 'Geist, sans-serif',
+                fontWeight: 800,
+                fontSize: '1.15rem',
+                lineHeight: 1,
+                color: 'var(--hw-navy-dark)',
+                letterSpacing: '-0.02em',
+              }}
+            >
+              HealthWeave
+            </span>
+            <span
+              style={{
+                fontSize: '0.625rem',
+                fontWeight: 600,
+                letterSpacing: '0.08em',
+                textTransform: 'uppercase',
+                color: 'var(--hw-teal)',
+                marginTop: '0.15rem',
+              }}
+            >
+              Synthesizing Your Health Story
+            </span>
+          </div>
+        </Link>
+
+        {/* ── Nav ────────────────────────────────────────────────────── */}
+        <nav style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} aria-label="Main">
+          {pastReportsAsToggle && typeof onPastReportsClick === 'function' ? (
+            <NavBtn as="button" onClick={onPastReportsClick}>
+              <Clock size={14} /> Past Reports
+            </NavBtn>
+          ) : (
+            <NavBtn as="link" href="/">
+              <Clock size={14} /> Past Reports
+            </NavBtn>
+          )}
+
+          <NavBtn as="link" href="/about">
+            <Info size={14} /> About
+          </NavBtn>
+
+          <div style={{ width: '1px', height: '1.25rem', background: 'var(--border)', margin: '0 0.25rem' }} />
+
+          <NavBtn as="link" href="/" primary>
+            <Plus size={14} /> New Analysis
+          </NavBtn>
+        </nav>
       </div>
     </header>
+  );
+}
+
+/* ── Tiny NavBtn helper ─────────────────────────────────────────────────────── */
+type NavBtnProps =
+  | { as: 'button'; onClick: () => void; primary?: boolean; children: React.ReactNode }
+  | { as: 'link';   href: string;         primary?: boolean; children: React.ReactNode };
+
+function NavBtn(props: NavBtnProps) {
+  const base: React.CSSProperties = {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '0.35rem',
+    padding: '0.4rem 0.85rem',
+    borderRadius: '0.55rem',
+    fontSize: '0.8rem',
+    fontWeight: 500,
+    cursor: 'pointer',
+    textDecoration: 'none',
+    transition: 'all 0.15s',
+    border: props.primary
+      ? '1px solid rgba(70,147,195,0.35)'
+      : '1px solid var(--border)',
+    background: props.primary ? 'rgba(70,147,195,0.08)' : 'var(--surface-0)',
+    color: props.primary ? 'var(--hw-navy)' : '#4b5563',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.05)',
+  };
+
+  if (props.as === 'button') {
+    return (
+      <button type="button" onClick={props.onClick} style={base}>
+        {props.children}
+      </button>
+    );
+  }
+  return (
+    <Link href={props.href} style={base}>
+      {props.children}
+    </Link>
   );
 }

@@ -16,11 +16,8 @@ export const getPatientContext = async (req: Request, res: Response) => {
 
 export const savePatientContext = async (req: Request, res: Response) => {
   const userId = req.body.userId || 'test-user';
-  const { context } = req.body;
-
-  if (typeof context !== 'string') {
-    return res.status(400).json({ success: false, error: 'context must be a string' });
-  }
+  // `context` is validated and trimmed by Zod middleware before reaching here
+  const context: string = req.body.context;
 
   try {
     await patientContextService.saveContext(userId, context);

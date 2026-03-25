@@ -12,6 +12,16 @@ import {
   deleteReport,
 } from './handlers/analysis';
 import { getPatientContext, savePatientContext } from './handlers/patientContext';
+import {
+  validateBody,
+  validateQuery,
+  validateParams,
+  analyzeBodySchema,
+  getReportsQuerySchema,
+  reportIdParam,
+  patientContextQuerySchema,
+  savePatientContextBodySchema,
+} from './utils/validation';
 
 const app = express();
 
@@ -92,14 +102,14 @@ app.get('/health', (_req: Request, res: Response) => {
   });
 });
 
-// API Routes
-app.post('/api/analyze', analyzeDocuments);
-app.get('/api/reports/:reportId', getReport);
-app.get('/api/reports', getUserReports);
-app.delete('/api/reports/:reportId', deleteReport);
-app.get('/api/reports/:reportId/pdf', downloadReportPDF);
-app.get('/api/patient-context', getPatientContext);
-app.post('/api/patient-context', savePatientContext);
+// API Routes — with Zod request validation
+app.post('/api/analyze', validateBody(analyzeBodySchema), analyzeDocuments);
+app.get('/api/reports/:reportId', validateParams(reportIdParam), getReport);
+app.get('/api/reports', validateQuery(getReportsQuerySchema), getUserReports);
+app.delete('/api/reports/:reportId', validateParams(reportIdParam), deleteReport);
+app.get('/api/reports/:reportId/pdf', validateParams(reportIdParam), downloadReportPDF);
+app.get('/api/patient-context', validateQuery(patientContextQuerySchema), getPatientContext);
+app.post('/api/patient-context', validateBody(savePatientContextBodySchema), savePatientContext);
 
 // 404 handler
 app.use((_req: Request, res: Response) => {
