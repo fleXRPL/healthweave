@@ -126,3 +126,7 @@ temp/
 # yarn.lock
 # pnpm-lock.yaml
 
+# Claude Code / claude-flow (local agent config; do not commit)
+.claude/
+.claude-flow/
+

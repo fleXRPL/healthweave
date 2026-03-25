@@ -15,8 +15,8 @@ import logger from '../utils/logger';
 import { AuditLog } from '../types';
 
 class AuditService {
-  private client: DynamoDBDocumentClient;
-  private tableName: string;
+  private readonly client: DynamoDBDocumentClient;
+  private readonly tableName: string;
 
   constructor() {
     const dynamoClient = new DynamoDBClient({
@@ -48,8 +48,12 @@ class AuditService {
       const describeCommand = new DescribeTableCommand({ TableName: this.tableName });
       await this.client.send(describeCommand as any);
       logger.info('Audit log table already exists', { table: this.tableName });
-    } catch (error: any) {
-      if (error.name === 'ResourceNotFoundException') {
+    } catch (error: unknown) {
+      const errName =
+        error && typeof error === 'object' && 'name' in error
+          ? String((error as { name: unknown }).name)
+          : '';
+      if (errName === 'ResourceNotFoundException') {
         // Create table
         try {
           const createCommand = new CreateTableCommand({

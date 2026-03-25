@@ -105,7 +105,10 @@ describe('GET /api/reports', () => {
 
 describe('GET /api/reports/:reportId', () => {
   it('returns 404 when report does not exist', async () => {
-    const res = await request(app).get('/api/reports/nonexistent-id');
+    // reportId must be a UUID (see validateParams(reportIdParam)); use a valid v4 that is not in DB
+    const res = await request(app).get(
+      '/api/reports/00000000-0000-4000-8000-000000000001'
+    );
     expect(res.status).toBe(404);
     expect(res.body.success).toBe(false);
   });

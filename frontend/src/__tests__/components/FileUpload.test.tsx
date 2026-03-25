@@ -89,7 +89,7 @@ describe('FileUpload', () => {
     await user.click(screen.getByRole('button', { name: /save for next time/i }));
 
     await waitFor(() => {
-      expect(screen.getByText('Saved')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: /✓ saved/i })).toBeInTheDocument();
     });
     expect(mockSavePatientContext).toHaveBeenCalledWith('new context');
   });
