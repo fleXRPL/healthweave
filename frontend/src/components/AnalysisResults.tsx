@@ -70,7 +70,11 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
             <CheckCircle size={16} style={{ color: '#16a34a' }} />
           </div>
           <span style={{ fontSize: '0.875rem', fontWeight: 600, color: '#15803d' }}>Analysis Complete</span>
-          <span style={{ marginLeft: 'auto', fontSize: '0.7rem', fontFamily: 'Geist Mono, monospace', background: 'rgba(22,163,74,0.12)', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '0.35rem' }}>
+          <span
+            data-testid="report-id-badge"
+            title={result.reportId}
+            style={{ marginLeft: 'auto', fontSize: '0.7rem', fontFamily: 'Geist Mono, monospace', background: 'rgba(22,163,74,0.12)', color: '#166534', padding: '0.15rem 0.5rem', borderRadius: '0.35rem' }}
+          >
             {result.reportId.slice(0, 8)}…
           </span>
         </div>

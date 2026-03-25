@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { AnalyzeResponse } from '@/types';
 
 // Mock the API client before importing the component
@@ -31,9 +31,11 @@ describe('AnalysisResults', () => {
     globalThis.URL.revokeObjectURL = jest.fn();
   });
 
-  it('renders the report ID in the success banner', () => {
+  it('renders a truncated report ID in the success banner', () => {
     render(<AnalysisResults result={baseResult} />);
-    expect(screen.getByText(/test-report-123/)).toBeInTheDocument();
+    const badge = screen.getByTestId('report-id-badge');
+    expect(badge).toHaveAttribute('title', 'test-report-123');
+    expect(badge.textContent).toMatch(/^test-rep/);
   });
 
   it('renders the AI summary', () => {
@@ -83,8 +85,7 @@ describe('AnalysisResults', () => {
   it('renders document count when provided', () => {
     const result = { ...baseResult, documentCount: 5, keyFindings: [], recommendations: [] };
     render(<AnalysisResults result={result} />);
-    // documentCount rendered as <strong>5</strong> documents analyzed
-    expect(screen.getByText('5')).toBeInTheDocument();
+    expect(screen.getByText(/5\s*docs/)).toBeInTheDocument();
   });
 
   it('renders analysis duration when provided', () => {
@@ -101,10 +102,20 @@ describe('AnalysisResults', () => {
   });
 
   it('calls downloadReportPDF when download button is clicked', async () => {
+    const clickSpy = jest.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
     render(<AnalysisResults result={baseResult} />);
     const btn = screen.getByRole('button', { name: /download pdf report/i });
     fireEvent.click(btn);
-    expect(mockDownloadPDF).toHaveBeenCalledWith('test-report-123');
+    await waitFor(
+      () => {
+        expect(mockDownloadPDF).toHaveBeenCalledWith('test-report-123');
+      },
+      { timeout: 5000 }
+    );
+    await waitFor(() => {
+      expect(btn).not.toBeDisabled();
+    });
+    clickSpy.mockRestore();
   });
 
   it('renders bold markdown in summary', () => {
