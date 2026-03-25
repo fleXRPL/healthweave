@@ -44,7 +44,7 @@ export default function Footer() {
                 key={href}
                 href={href}
                 className="transition-colors"
-                style={{ color: 'var(--primary)' }}
+                style={{ color: 'var(--hw-navy)' }}
               >
                 {label}
               </Link>
@@ -53,7 +53,7 @@ export default function Footer() {
               href={GITHUB_ISSUES_URL}
               target="_blank"
               rel="noopener noreferrer"
-              style={{ color: 'var(--primary)' }}
+              style={{ color: 'var(--hw-navy)' }}
               className="transition-colors"
             >
               Feedback

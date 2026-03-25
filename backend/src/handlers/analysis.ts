@@ -34,12 +34,13 @@ const upload = multer({
   },
 });
 
+/** Multer must run before Zod `validateBody` so multipart fields populate `req.body`. */
+export const analyzeUploadMiddleware = upload.array('documents', 25);
+
 /**
- * Upload and analyze health documents
+ * Upload and analyze health documents (handler only — register after multer + validation in `index.ts`).
  */
-export const analyzeDocuments = [
-  upload.array('documents', 25), // Allow up to 25 files
-  async (req: Request, res: Response) => {
+export async function analyzeDocumentsHandler(req: Request, res: Response) {
     const userId = req.body.userId || 'test-user'; // TODO: Get from JWT
     const localOnly = req.body.localOnly === 'true' || req.body.localOnly === true;
 
@@ -286,6 +287,7 @@ export const analyzeDocuments = [
         keyFindings: report.keyFindings,
         recommendations: report.recommendations,
         questionsForDoctor: report.questionsForDoctor,
+        citations: report.citations,
         documentNames: report.documentNames,
         modelUsed: report.modelUsed,
         documentCount: uploadedDocs.length,
@@ -330,8 +332,10 @@ export const analyzeDocuments = [
         message: errorMessage,
       });
     }
-  },
-];
+}
+
+/** Backward-compatible tuple for tests or tooling that expects [multer, handler]. */
+export const analyzeDocuments = [analyzeUploadMiddleware, analyzeDocumentsHandler];
 
 /**
  * Get a specific report

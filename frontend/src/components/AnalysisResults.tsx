@@ -5,7 +5,7 @@ import {
   CheckCircle, Search, Sparkles, MessageCircle, BookOpen,
   Download, AlertTriangle, FileText, Clock, Activity,
 } from 'lucide-react';
-import { AnalyzeResponse } from '@/types';
+import { AnalyzeResponse, Citation } from '@/types';
 import api from '@/lib/api';
 
 interface AnalysisResultsProps { readonly result: AnalyzeResponse; }
@@ -34,8 +34,7 @@ export default function AnalysisResults({ result }: AnalysisResultsProps) {
   const [pdfLoading, setPdfLoading] = useState(false);
   const [pdfErr, setPdfErr] = useState<string | null>(null);
 
-  const citations = (result as any).citations as
-    Array<{ source: string; type: string; relevance: string }> | undefined;
+  const citations: Citation[] | undefined = result.citations;
   const hasCitations = (citations?.length ?? 0) > 0;
 
   const handleDownloadPDF = async () => {

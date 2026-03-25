@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useDropzone } from 'react-dropzone';
-import { UploadCloud, FileText, Image, Lock, Sparkles, X } from 'lucide-react';
+import { UploadCloud, FileText, Image as ImageIcon, Lock, Sparkles, X } from 'lucide-react';
 import apiClient from '@/lib/api';
 
 interface FileUploadProps {
@@ -18,7 +18,7 @@ const ACCEPT_TYPES = {
 };
 
 function fileIcon(type: string) {
-  if (type.startsWith('image/')) return <Image size={15} />;
+  if (type.startsWith('image/')) return <ImageIcon size={15} aria-hidden />;
   return <FileText size={15} />;
 }
 

@@ -40,6 +40,7 @@ function toAnalyzeResponse(report: AnalysisResult): AnalyzeResponse {
     keyFindings: report.keyFindings,
     recommendations: report.recommendations,
     questionsForDoctor: report.questionsForDoctor,
+    citations: report.citations,
     documentNames: report.documentNames,
     modelUsed: report.modelUsed,
   };

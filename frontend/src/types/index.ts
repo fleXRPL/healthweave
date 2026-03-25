@@ -44,6 +44,7 @@ export interface AnalyzeResponse {
   keyFindings: string[];
   recommendations: string[];
   questionsForDoctor?: string[];
+  citations?: Citation[];
   error?: string;
   message?: string;
   // Analysis metadata
