@@ -30,7 +30,7 @@
     "@aws-sdk/s3-request-presigner": "^3.984.0",
     "cors": "^2.8.5",
     "dotenv": "^17.2.3",
-    "express": "^4.22.2",
+    "express": "^5.2.1",
     "helmet": "^8.0.0",
     "marked": "^14.1.0",
     "multer": "^2.2.0",
